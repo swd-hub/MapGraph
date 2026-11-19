@@ -137,7 +137,7 @@
       <label><input type="checkbox" id="showLabel"> 地域名を表示</label>
     </div>
     <div class="controls">
-      <label><input type="checkbox" id="okiShift" checked> 隠岐を本土の近くに寄せて表示（位置調整）</label>
+      <label><input type="checkbox" id="okiShift" checked> 離島を近くに寄せて表示（隠岐・沖縄の位置調整）</label>
     </div>
     <div class="controls">
       <button id="btnView" class="sub">表示位置リセット</button>
@@ -234,9 +234,14 @@ const BUILTIN_FEATURES = BUILTIN_PREF.map(([name, ring]) => ({
 let MAP_REGISTRY = [
   { id: "shimane", label: "島根県 市町村", url: "maps/shimane.geojson",
     nameKey: "N03_004", codeKey: "N03_007", filterKey: "N03_001", filterVal: "島根県" },
-  { id: "pref", label: "都道府県（内蔵・簡易）", builtin: true, nameKey: "name" },
+  { id: "pref-geo", label: "全国 都道府県", url: "maps/japan_pref.geojson", nameKey: "nam_ja" },
+  { id: "pref", label: "都道府県（内蔵・簡易／上が取得できないときの代替）", builtin: true, nameKey: "name" },
 ];
 let currentMapId = "";
+const ISLAND_SHIFTS = [
+  { test: u => /^3252[5-8]$/.test(u.code), dx: -1.0, dy: -0.55 }, // 隠岐
+  { test: u => u.name === "沖縄県", dx: -3.0, dy: 4.0 },           // 沖縄
+];
 const mapCache = new Map(); // id → Promise<features>
 let detectTimer = null, detectToken = 0;
 
@@ -430,12 +435,11 @@ function applyGeo() {
   });
   ({ units, byCode, byName, byAlias } = idx);
 
-  // 隠岐（32525〜32528）を本土の北西の海上へ平行移動して余白を減らす
+  // 離島を本土の近くへ平行移動して余白を減らす（隠岐：島根県単独の地図、沖縄県：全国の地図）
   if ($okiShift.checked) {
     for (const u of units.values()) {
-      if (/^3252[5-8]$/.test(u.code)) {
-        u.polys = u.polys.map(poly => poly.map(ring => ring.map(([x, y]) => [x - 1.0, y - 0.55])));
-      }
+      const sh = ISLAND_SHIFTS.find(x => x.test(u));
+      if (sh) u.polys = u.polys.map(poly => poly.map(ring => ring.map(([x, y]) => [x + sh.dx, y + sh.dy])));
     }
   }
 
