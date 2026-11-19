@@ -165,12 +165,12 @@
 // ===== 描画定数 =====
 const W = 820, P = 12, R_MAX = 24;
 let view = { x: 0, y: 0, z: 1 }, lastH = 0; // 表示位置（viewBox左上・倍率）
-const COLOR_POS = "#2563eb", COLOR_NEG = "#dc2626", COLOR_NA = "#e5e7eb", COLOR_SHAPE = "#f3f4f6";
+const COLOR_POS = "#2563eb", COLOR_NEG = "#dc2626", COLOR_NA = "#d1d5db", COLOR_SHAPE = "#b8c4d4";
 
 const PALETTES = {
-  blue:  [[239, 246, 255], [8, 48, 107]],
-  red:   [[255, 245, 240], [103, 0, 13]],
-  green: [[240, 253, 244], [0, 68, 27]],
+  blue:  [[198, 219, 239], [8, 48, 107]],
+  red:   [[252, 187, 161], [103, 0, 13]],
+  green: [[199, 233, 192], [0, 68, 27]],
 };
 
 // ===== 白地図レジストリ（fetchで読込・CSVから自動切替） =====
