@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>地域 値マップ（統一版）</title>
+<title>全国市町村 肉用牛産出額マップ</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -42,7 +42,7 @@
   .status { font-size: 12px; color: #1f2937; margin-top: 8px; line-height: 1.6; }
   .warn { color: #b45309; font-size: 12px; margin-top: 10px; white-space: pre-line; }
   .map-area { overflow: hidden; }
-  #map svg { display: block; width: 100%; height: 82vh; min-height: 420px; overflow: visible; cursor: grab; touch-action: none; user-select: none; }
+  #map svg { display: block; width: 100%; height: 98.4vh; min-height: 504px; overflow: visible; cursor: grab; touch-action: none; user-select: none; }
   #map svg.dragging { cursor: grabbing; }
   .empty { padding: 60px 20px; text-align: center; color: #6b7280; font-size: 14px; background: #f9fafb; border-radius: 8px; }
   .bar { height: 14px; border-radius: 4px; border: 1px solid #ddd; }
@@ -59,14 +59,14 @@
 </head>
 <body>
 
-<h1>地域 値マップ（統一版）</h1>
+<h1>全国市町村 肉用牛産出額マップ（千万円）</h1>
 
 <div class="wrap">
   <!-- 入力パネル -->
   <div class="panel">
     <h2>1. 境界データ（GeoJSON）</h2>
     <div class="controls col" style="margin-bottom:10px;">
-      <label>白地図（fetchで読込）：<select id="mapSel"></select></label>
+      <label>白地図（取得して読込）：<select id="mapSel"></select></label>
     </div>
     <div class="controls col">
       <label>ファイルから読込：<input type="file" id="geo" accept=".geojson,.json,application/geo+json,application/json"></label>
@@ -76,36 +76,37 @@
       </div>
     </div>
 
-    <div id="geoStatus" class="status"></div>
+<div id="geoStatus" class="status"></div>
     <details style="margin-top:8px;">
       <summary style="font-size:12px;color:#555;cursor:pointer;">詳細設定（手動で読み込んだGeoJSON用）</summary>
-    <div class="controls col" style="margin-top:12px;">
-      <label>地域名のプロパティ：<select id="nameKey"></select></label>
-      <label>一意コードのプロパティ（任意）：<select id="codeKey"></select></label>
-      <label>絞り込みのプロパティ：<select id="filterKey"></select></label>
-      <label>絞り込みの値（完全一致）：<input type="text" id="filterVal" placeholder="例：島根県"></label>
-      <div><button id="btnApply">境界を適用</button></div>
-    </div>
-
-    <div class="hint">
-      ・読込直後は、地域名のプロパティを自動で選びます。違う場合は手動で変更してください。<br>
-      ・市町村データでは、地域名に <code>N03_004</code>、一意コードに <code>N03_007</code> を指定すると同名の地域も区別できます。<br>
-    </div>
+      <div class="controls col" style="margin-top:12px;">
+        <label>地域名のプロパティ：<select id="nameKey"></select></label>
+        <label>一意コードのプロパティ（任意）：<select id="codeKey"></select></label>
+        <label>絞り込みのプロパティ：<select id="filterKey"></select></label>
+        <label>絞り込みの値（完全一致）：<input type="text" id="filterVal" placeholder="例：島根県"></label>
+        <div><button id="btnApply">境界を適用</button></div>
+      </div>
+      <div class="hint">
+        ・読込直後は、地域名のプロパティを自動で選びます。違う場合は手動で変更してください。<br>
+        ・市町村データでは、地域名に <code>N03_004</code>、一意コードに <code>N03_007</code> を指定すると同名の地域も区別できます。
+      </div>
     </details>
 
-    <h2 style="margin-top:16px;">2. 値データ（CSV / タブ区切り）</h2>
-    <textarea id="csv" spellcheck="false" placeholder="地域,値&#10;東京都,1404"></textarea>
+    <h2 style="margin-top:16px;">2. 値データ（タブ区切り・3列）</h2>
+    <textarea id="csv" spellcheck="false" placeholder="都道府県&#9;市町村&#9;値"></textarea>
     <div class="controls">
-      <button id="btnSample">サンプル</button>
+      <button id="btnSample">サンプル（仮の値）</button>
       <button id="btnClear" class="sub">クリア</button>
     </div>
     <div class="controls">
       <label>ファイル（CSV / TSV）：<input type="file" id="file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
     </div>
     <div class="hint">
-      ・1列目は地域名またはコードです。同名の地域がある場合はコードを入力してください。<br>
+      ・列の順番は「都道府県・市町村・値」です。2列（地域名・値）でも入力できます。<br>
+      ・都道府県と市町村の組み合わせで照合するため、同名の市町村も区別できます。<br>
       ・「東京」「大阪」のように県・府・都を省いた名前も照合できます。<br>
-      ・<code>"1,404"</code> のような桁区切り付きの数値にも対応しています。
+      ・<code>"1,404"</code> のような桁区切り付きの数値にも対応しています。<br>
+      ・政令指定都市（札幌市など）は地図上では区単位のため、「札幌市」の行は一致しない場合があります。警告欄を確認してください。
     </div>
 
     <h2 style="margin-top:16px;">3. 表示設定</h2>
@@ -115,14 +116,6 @@
           <option value="size">円の大きさ</option>
           <option value="color">塗りの色</option>
           <option value="both">両方</option>
-        </select>
-      </label>
-    </div>
-    <div class="controls">
-      <label>サイズ基準：
-        <select id="scale">
-          <option value="area">面積比例（推奨）</option>
-          <option value="radius">半径比例</option>
         </select>
       </label>
     </div>
@@ -138,6 +131,7 @@
     <div class="controls">
       <label><input type="checkbox" id="showLabel"> 地域名を表示</label>
       <label><input type="checkbox" id="showValue" checked> 数値を表示</label>
+      <label><input type="checkbox" id="showPref" checked> 都道府県境界線を表示</label>
     </div>
     <div class="controls">
       <label><input type="checkbox" id="okiShift" checked> 離島を近くに寄せて表示（隠岐・沖縄の位置調整）</label>
@@ -167,24 +161,85 @@
 const W = 820, P = 12, R_MAX = 24;
 let view = { x: 0, y: 0, z: 1 }, lastH = 0; // 表示位置（viewBox左上・倍率）
 const COLOR_POS = "#2563eb", COLOR_NEG = "#dc2626", COLOR_NA = "#d1d5db", COLOR_SHAPE = "#b8c4d4";
+const COLOR_PREF = "#334155"; // 都道府県の境界線
+const COLOR_STROKE = "#cbd5e1"; // 地域の境界線（0の白い地域が背景に溶けないよう薄いグレー）
 
+// 配色は「白（0）→ 濃い色（最大）」のグラデーション。0は配色に関係なく白
 const PALETTES = {
-  blue:  [[198, 219, 239], [8, 48, 107]],
-  red:   [[252, 187, 161], [103, 0, 13]],
-  green: [[199, 233, 192], [0, 68, 27]],
+  blue:  [[255, 255, 255], [8, 48, 107]],
+  red:   [[255, 255, 255], [103, 0, 13]],
+  green: [[255, 255, 255], [0, 68, 27]],
 };
 
+// ===== 初期データ（都道府県・肉用牛産出額（千万円）・仮の値） =====
+// 注意：仮の値であり、実際の統計値ではありません。
+const INITIAL_CSV = [
+  "都道府県\t肉用牛産出額（千万円・仮）",
+  "北海道\t1500",
+  "青森県\t320",
+  "岩手県\t480",
+  "宮城県\t210",
+  "秋田県\t90",
+  "山形県\t150",
+  "福島県\t180",
+  "茨城県\t120",
+  "栃木県\t260",
+  "群馬県\t130",
+  "埼玉県\t60",
+  "千葉県\t110",
+  "東京都\t0",
+  "神奈川県\t5",
+  "新潟県\t60",
+  "富山県\t40",
+  "石川県\t20",
+  "福井県\t30",
+  "山梨県\t40",
+  "長野県\t170",
+  "岐阜県\t230",
+  "静岡県\t130",
+  "愛知県\t110",
+  "三重県\t80",
+  "滋賀県\t40",
+  "京都府\t30",
+  "大阪府\t0",
+  "兵庫県\t180",
+  "奈良県\t20",
+  "和歌山県\t40",
+  "鳥取県\t150",
+  "島根県\t140",
+  "岡山県\t110",
+  "広島県\t70",
+  "山口県\t60",
+  "徳島県\t40",
+  "香川県\t20",
+  "愛媛県\t60",
+  "高知県\t40",
+  "福岡県\t60",
+  "佐賀県\t90",
+  "長崎県\t90",
+  "熊本県\t480",
+  "大分県\t180",
+  "宮崎県\t560",
+  "鹿児島県\t1100",
+  "沖縄県\t30",
+].join("\n") + "\n";
+
 // ===== 白地図レジストリ（fetchで読込・CSVから自動切替） =====
-// 白地図は GitHub（swd-hub/MapGraph の maps フォルダ）から fetch します。raw.githubusercontent.com はCORS許可なので file:// で開いても読めます。
+// 白地図は GitHub（swd-hub/MapGraph の maps フォルダ）から fetch します。
+// raw.githubusercontent.com はCORS許可なので file:// で開いても読めます。
 // 同点のときは先に書いたものが優先されるので、細かい地図ほど上に置いてください。
-// filterKey/filterVal は全国データから絞り込む場合のみ（島根県単独のファイルなら削除）。
 const MAP_BASE = "https://raw.githubusercontent.com/swd-hub/MapGraph/main/maps/";
-let MAP_REGISTRY = [
+///const MAP_BASE = "./地図データ/"; // ローカル配置で使う場合はこちらを有効化
+const MAP_REGISTRY = [
   { id: "shimane", label: "島根県 市町村", url: MAP_BASE + "shimane.geojson",
     nameKey: "N03_004", codeKey: "N03_007", filterKey: "N03_001", filterVal: "島根県" },
-  { id: "pref-geo", label: "全国 都道府県", url: MAP_BASE + "japan_pref.geojson", nameKey: "nam_ja", default: true },
+  { id: "city-geo", label: "全国 市町村", url: MAP_BASE + "japan_city.geojson",
+    nameKey: "N03_004", codeKey: "N03_007" },
+  { id: "pref-geo", label: "全国 都道府県", url: MAP_BASE + "japan_pref.geojson",
+    nameKey: "nam_ja", default: true },
 ];
 let currentMapId = "";
+
 const ISLAND_SHIFTS = [
   { test: u => /^3252[5-8]$/.test(u.code), dx: -1.0, dy: -0.55 }, // 隠岐
   { test: u => u.name === "沖縄県", dx: -3.0, dy: 4.0 },           // 沖縄
@@ -195,10 +250,11 @@ let detectTimer = null, detectToken = 0;
 // ===== 状態 =====
 let features = [];        // 読込済みの生フィーチャ
 let sourceLabel = "";     // 読込元の表示名
-let units = new Map();    // id → { id, name, code, polys }
+let units = new Map();    // id → { id, name, code, pref, polys }
 let byCode = new Map();   // 正規化コード → id
 let byName = new Map();   // 正規化名 → [id, ...]
 let byAlias = new Map();  // 短縮名（県・府・都を除く） → [id, ...]
+let byPref = new Map();   // 正規化「都道府県|市町村」 → [id, ...]
 
 // ===== DOM =====
 const $ = id => document.getElementById(id);
@@ -212,10 +268,10 @@ const $sizeLegend = $("sizeLegend");
 const $stats = $("stats");
 const $warn = $("warn");
 const $mode = $("mode");
-const $scale = $("scale");
 const $palette = $("palette");
 const $showLabel = $("showLabel");
 const $showValue = $("showValue");
+const $showPref = $("showPref");
 const $geoStatus = $("geoStatus");
 const $nameKey = $("nameKey");
 const $codeKey = $("codeKey");
@@ -230,6 +286,7 @@ const norm = s => String(s).replace(/\s/g, "");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const shortOf = name => /[県府都]$/.test(name) ? name.slice(0, -1) : name;
 const pushMap = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+const prefKey = (pref, name) => norm(pref) + "|" + norm(name);
 const warnText = warnings => warnings.length
   ? "⚠ " + warnings.slice(0, 50).join("\n⚠ ") + (warnings.length > 50 ? `\n⚠ ほか${warnings.length - 50}件` : "")
   : "";
@@ -250,6 +307,7 @@ function readText(file, cb) {
 }
 
 // ===== CSV / TSV 解析 =====
+// 3列（都道府県・市町村・値）と2列（地域・値）の両方に対応
 function splitLine(line, delimiter) {
   const cols = [];
   let cur = "", inQuotes = false;
@@ -279,13 +337,17 @@ function parseRows(text, warnings) {
       warnings.push(`${i + 1}行目: 列が不足しています（地域名と値の2列が必要です）`);
       return;
     }
-    const raw = cols[1].replace(/,/g, "");
+    const three = cols.length >= 3;
+    const pref = three ? cols[0] : "";
+    const name = three ? cols[1] : cols[0];
+    const valRaw = three ? cols[2] : cols[1];
+    const raw = valRaw.replace(/,/g, "");
     if (raw === "" || isNaN(Number(raw))) {
       if (i === 0) return; // 見出し行
-      warnings.push(`${i + 1}行目: 数値ではない値 "${cols[1]}"`);
+      warnings.push(`${i + 1}行目: 数値ではない値 "${valRaw}"`);
       return;
     }
-    rows.push({ name: cols[0], val: Number(raw), line: i + 1 });
+    rows.push({ pref, name, val: Number(raw), line: i + 1 });
   });
   return rows;
 }
@@ -350,10 +412,138 @@ function setFeatures(feats, label, cfg) {
   applyGeo();
 }
 
+// ===== 都道府県境界線レイヤー（japan_pref.geojson から生成） =====
+// 市町村データ側の頂点は都道府県境で一致しないため、都道府県データ（隣接辺を共有）から境界を作って重ねる
+let prefLayerFeats = null, prefLayerLoading = false;
+let prefLines = null, prefLinesKey = null;
+
+function ensurePrefFeats() {
+  if (prefLayerFeats || prefLayerLoading) return;
+  const m = MAP_REGISTRY.find(x => x.id === "pref-geo");
+  if (!m) return;
+  prefLayerLoading = true;
+  loadMapFeatures(m)
+    .then(f => { prefLayerFeats = f; render(); })
+    .catch(err => {
+      prefLayerLoading = false;
+      $geoStatus.textContent += `　［都道府県境界の取得に失敗：${err.message}］`;
+    });
+}
+
+// 隣り合う別の都道府県の境界線に近い辺だけを集め、つなげて折れ線にする
+// （都道府県データは県境で頂点が一致しない箇所があるため、頂点一致ではなく距離で判定する。
+//   境界は名前順で若い側の県の輪郭だけを採用するので二重線にならない）
+function calcPrefLines(feats, shift) {
+  const TOL = 0.01, STEP = 0.002, CELL = 0.02;
+  const edges = [];
+  for (const f of feats) {
+    const pref = String((f.properties || {}).nam_ja ?? "");
+    for (let poly of extractPolys(f.geometry)) {
+      if (shift) {            // 隠岐・沖縄は市町村地図と同じ量だけ移動
+        let sh = null;
+        if (pref === "沖縄県") sh = ISLAND_SHIFTS[1];
+        else if (pref === "島根県" && poly[0][0][0] > 132.5 && poly[0][0][1] > 35.9) sh = ISLAND_SHIFTS[0];
+        if (sh) poly = poly.map(r => r.map(([x, y]) => [x + sh.dx, y + sh.dy]));
+      }
+      for (const ring of poly) {
+        for (let i = 0; i < ring.length; i++) {
+          const p = ring[i], q = ring[(i + 1) % ring.length];
+          if (p[0] === q[0] && p[1] === q[1]) continue;
+          edges.push({ a: p, b: q, ka: p[0] + "," + p[1], kb: q[0] + "," + q[1], p: pref });
+        }
+      }
+    }
+  }
+  const samplesOf = e => {
+    const n = Math.max(1, Math.ceil(Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]) / STEP));
+    const out = [];
+    for (let i = 0; i <= n; i++) out.push([e.a[0] + (e.b[0] - e.a[0]) * i / n, e.a[1] + (e.b[1] - e.a[1]) * i / n]);
+    return out;
+  };
+  const grid = new Map();
+  for (const e of edges) {
+    e.s = samplesOf(e);
+    for (const [x, y] of e.s) {
+      const k = Math.floor(x / CELL) + "," + Math.floor(y / CELL);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k).push({ x, y, p: e.p });
+    }
+  }
+  const nearOther = (x, y, pref) => {
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const c = grid.get((cx + i) + "," + (cy + j));
+      if (!c) continue;
+      for (const g of c) if (g.p > pref && Math.hypot(g.x - x, g.y - y) <= TOL) return true;
+    }
+    return false;
+  };
+  const kept = edges.filter(e => {
+    let hit = 0;
+    for (const [x, y] of e.s) if (nearOther(x, y, e.p)) hit++;
+    return hit >= e.s.length * 0.6;
+  });
+  const map = new Map();
+  for (const e of kept) {
+    const k = e.ka < e.kb ? e.ka + "|" + e.kb : e.kb + "|" + e.ka;
+    map.set(k, Object.assign(e, { border: true }));
+  }
+  const nodes = new Map();
+  const link = (k, pt, nk) => {
+    if (!nodes.has(k)) nodes.set(k, { pt, nb: [] });
+    nodes.get(k).nb.push(nk);
+  };
+  for (const e of map.values()) {
+    if (!e.border) continue;
+    link(e.ka, e.a, e.kb); link(e.kb, e.b, e.ka);
+  }
+  const used = new Set();
+  const ek = (x, y) => x < y ? x + "|" + y : y + "|" + x;
+  const lines = [];
+  const walk = (start, first) => {
+    const line = [nodes.get(start).pt];
+    let cur = first;
+    used.add(ek(start, cur));
+    for (;;) {
+      const n = nodes.get(cur);
+      line.push(n.pt);
+      if (n.nb.length !== 2) break;               // 端点・分岐点で終了
+      const next = n.nb.find(x => !used.has(ek(cur, x)));
+      if (next === undefined) break;              // 閉じた輪
+      used.add(ek(cur, next));
+      cur = next;
+    }
+    lines.push(line);
+  };
+  for (const [k, n] of nodes) {
+    if (n.nb.length === 2) continue;
+    for (const nk of n.nb) if (!used.has(ek(k, nk))) walk(k, nk);
+  }
+  for (const [k, n] of nodes) {                   // 残り（環状の境界）
+    for (const nk of n.nb) if (!used.has(ek(k, nk))) walk(k, nk);
+  }
+  return lines;
+}
+
+// 折れ線をなめらかにする（Chaikin法・両端は固定）
+function smoothLine(pts, iter) {
+  for (let t = 0; t < iter && pts.length > 2; t++) {
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+      out.push([x1 * 0.75 + x2 * 0.25, y1 * 0.75 + y2 * 0.25]);
+      out.push([x1 * 0.25 + x2 * 0.75, y1 * 0.25 + y2 * 0.75]);
+    }
+    out.push(pts[pts.length - 1]);
+    pts = out;
+  }
+  return pts;
+}
+
 // ===== 地域（ユニット）の構築 =====
 function buildIndex(feats, cfg) {
   const nk = cfg.nameKey, ck = cfg.codeKey, fk = cfg.filterKey, fv = norm(cfg.filterVal || "");
-  const idx = { units: new Map(), byCode: new Map(), byName: new Map(), byAlias: new Map(), excluded: 0 };
+  const idx = { units: new Map(), byCode: new Map(), byName: new Map(), byAlias: new Map(), byPref: new Map(), excluded: 0 };
 
   for (const f of feats) {
     const p = f.properties || {};
@@ -362,8 +552,10 @@ function buildIndex(feats, cfg) {
     const polys = extractPolys(f.geometry);
     if (!name || polys.length === 0) { idx.excluded++; continue; }
     const code = ck ? String(p[ck] ?? "").trim() : "";
+    // 都道府県名：市町村データは N03_001、都道府県データは nam_ja
+    const pref = String(p.N03_001 ?? p.nam_ja ?? "").trim();
     const id = code ? "C:" + code : "N:" + name;
-    if (!idx.units.has(id)) idx.units.set(id, { id, name, code, polys: [] });
+    if (!idx.units.has(id)) idx.units.set(id, { id, name, code, pref, polys: [] });
     idx.units.get(id).polys.push(...polys);
   }
 
@@ -372,6 +564,7 @@ function buildIndex(feats, cfg) {
     pushMap(idx.byName, norm(u.name), u.id);
     const s = shortOf(u.name);
     if (s !== u.name) pushMap(idx.byAlias, norm(s), u.id);
+    if (u.pref) pushMap(idx.byPref, prefKey(u.pref, u.name), u.id);
   }
   return idx;
 }
@@ -381,9 +574,9 @@ function applyGeo() {
     nameKey: $nameKey.value, codeKey: $codeKey.value,
     filterKey: $filterKey.value, filterVal: $filterVal.value,
   });
-  ({ units, byCode, byName, byAlias } = idx);
+  ({ units, byCode, byName, byAlias, byPref } = idx);
 
-  // 離島を本土の近くへ平行移動して余白を減らす（隠岐：島根県単独の地図、沖縄県：全国の地図）
+  // 離島を本土の近くへ平行移動して余白を減らす
   if ($okiShift.checked) {
     for (const u of units.values()) {
       const sh = ISLAND_SHIFTS.find(x => x.test(u));
@@ -399,15 +592,19 @@ function applyGeo() {
   render();
 }
 
-// CSV の地域名（またはコード）→ 地域 id の候補
-function resolveIn(idx, raw) {
-  const k = norm(raw);
+// 行（都道府県・地域名またはコード）→ 地域 id の候補
+function resolveIn(idx, row) {
+  if (row.pref) {
+    const hit = idx.byPref.get(prefKey(row.pref, row.name));
+    if (hit) return hit;
+  }
+  const k = norm(row.name);
   if (idx.byCode.has(k)) return [idx.byCode.get(k)];
   if (idx.byName.has(k)) return idx.byName.get(k);
   if (idx.byAlias.has(k)) return idx.byAlias.get(k);
   return [];
 }
-const resolve = raw => resolveIn({ byCode, byName, byAlias }, raw);
+const currentIndex = () => ({ byCode, byName, byAlias, byPref });
 
 // ===== 白地図のfetch・自動切替 =====
 function loadMapFeatures(m) {
@@ -430,7 +627,7 @@ async function useMap(m) {
 
 function scoreMap(idx, rows) {
   let n = 0;
-  for (const r of rows) if (resolveIn(idx, r.name).length === 1) n++;
+  for (const r of rows) if (resolveIn(idx, r).length === 1) n++;
   return n;
 }
 
@@ -541,16 +738,18 @@ function ringCentroid(pts) {
 }
 
 // ===== 配色・サイズ =====
+// t=0 → 白、t=1 → 配色の濃い色
 function colorFor(t, pal) {
   const [a, b] = pal;
   return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(",")})`;
 }
 
-function makeRadiusFn(maxAbs, mode) {
+// 円の大きさは面積比例
+function makeRadiusFn(maxAbs) {
   return v => {
     if (maxAbs === 0) return 2;
     const ratio = Math.abs(v) / maxAbs;
-    return Math.max(2, R_MAX * (mode === "area" ? Math.sqrt(ratio) : ratio));
+    return Math.max(2, R_MAX * Math.sqrt(ratio));
   };
 }
 
@@ -568,15 +767,17 @@ function render() {
   }
 
   // 値の照合
+  const idx = currentIndex();
   const values = new Map();
   for (const r of parseRows($csv.value, warnings)) {
-    const ids = resolve(r.name);
+    const label = r.pref ? `${r.pref}${r.name}` : r.name;
+    const ids = resolveIn(idx, r);
     if (ids.length === 0) {
-      warnings.push(`${r.line}行目: 地域が見つかりません "${r.name}"`);
+      warnings.push(`${r.line}行目: 地域が見つかりません "${label}"`);
       continue;
     }
     if (ids.length > 1) {
-      warnings.push(`${r.line}行目: 同名の地域が複数あります "${r.name}"（1列目に一意コードを入力してください）`);
+      warnings.push(`${r.line}行目: 同名の地域が複数あります "${label}"（都道府県も入力してください）`);
       continue;
     }
     const id = ids[0];
@@ -586,13 +787,11 @@ function render() {
 
   const nums = [...values.values()];
   const hasData = nums.length > 0;
-  const min = hasData ? Math.min(...nums) : 0;
-  const max = hasData ? Math.max(...nums) : 0;
   const maxAbs = hasData ? Math.max(...nums.map(Math.abs)) : 0;
   const hasNeg = nums.some(v => v < 0);
   const mode = $mode.value;
   const pal = PALETTES[$palette.value];
-  const radiusOf = makeRadiusFn(maxAbs, $scale.value);
+  const radiusOf = makeRadiusFn(maxAbs);
   const showLabel = $showLabel.checked;
   const showValue = $showValue.checked;
 
@@ -606,15 +805,17 @@ function render() {
   for (const u of units.values()) {
     const v = values.get(u.id);
 
+    // 塗り：0は白、絶対値が大きいほど濃い色（最大値で最も濃くなる）
     let fill;
     if (mode === "size") fill = COLOR_SHAPE;
     else if (v === undefined) fill = COLOR_NA;
-    else fill = colorFor(max === min ? 0.5 : (v - min) / (max - min), pal);
+    else if (v === 0) fill = "#ffffff";
+    else fill = colorFor(maxAbs === 0 ? 0 : Math.abs(v) / maxAbs, pal);
 
     const projected = u.polys.map(poly => poly.map(ring => ring.map(([lon, lat]) => project(lon, lat))));
     const d = projected.flat().map(ringToPath).join("");
     const title = v !== undefined ? `${esc(u.name)}: ${fmt(v)}` : esc(u.name);
-    paths += `<path d="${d}" fill="${fill}" fill-rule="evenodd" stroke="#ffffff" stroke-width="${thin ? 0.3 : 0.8}"><title>${title}</title></path>`;
+    paths += `<path d="${d}" fill="${fill}" fill-rule="evenodd" stroke="${COLOR_STROKE}" stroke-width="${thin ? 0.3 : 0.8}"><title>${title}</title></path>`;
 
     // 最大の外周リングの重心
     let best = null, bestA = 0;
@@ -627,35 +828,56 @@ function render() {
     if (best) centers.push({ u, v, c: ringCentroid(best) });
   }
 
-  let marks = "";
+  // 都道府県境界線（レイヤー）
+  let prefPath = "";
+  if ($showPref.checked && new Set([...units.values()].map(u => u.pref).filter(Boolean)).size >= 2) {
+    ensurePrefFeats();
+    if (prefLayerFeats) {
+      const key = $okiShift.checked ? "shift" : "raw";
+      if (prefLinesKey !== key) { prefLines = calcPrefLines(prefLayerFeats, $okiShift.checked); prefLinesKey = key; }
+      const d = prefLines.map(line => {
+        const pts = smoothLine(line.map(([lon, lat]) => project(lon, lat)), 2);
+        return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+      }).join("");
+      prefPath = `<path d="${d}" fill="none" stroke="${COLOR_PREF}" stroke-width="${thin ? 0.6 : 0.9}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`;
+    }
+  }
+
+  let circleMarks = "", nameMarks = "", valueMarks = "";
   for (const { u, v, c } of centers) {
     const [cx, cy] = c;
-    const bubble = mode !== "color" && v !== undefined;
-    const r = bubble ? radiusOf(v) : 0;
-    if (bubble) {
+    // 値が0の地域は、円も数値も描かない（地域名は表示）
+    const hasBubble = mode !== "color" && v !== undefined && v !== 0;
+    const showsValue = showValue && v !== undefined && v !== 0;
+    const r = hasBubble ? radiusOf(v) : 0;
+    const x = cx.toFixed(1);
+    const bottom = cy - r - 3; // 数値の基準線（円の直上）
+    if (hasBubble) {
       const color = v < 0 ? COLOR_NEG : COLOR_POS;
-      marks += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"><title>${esc(u.name)}: ${fmt(v)}</title></circle>`;
-    }
-    if (showValue && v !== undefined) {
-      marks += `<text x="${cx.toFixed(1)}" y="${(cy + r + 11).toFixed(1)}" text-anchor="middle" font-size="10" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${fmt(v)}</text>`;
+      circleMarks += `<circle cx="${x}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"><title>${esc(u.name)}: ${fmt(v)}</title></circle>`;
     }
     if (showLabel) {
-      marks += `<text x="${cx.toFixed(1)}" y="${(cy - r - 3).toFixed(1)}" text-anchor="middle" font-size="10" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${esc(u.name)}</text>`;
+      const nameSize = /[県府都道]$/.test(u.name) ? 5 : 10; // 都道府県は5、市町村は10
+      const y = showsValue ? bottom - 9 : bottom;
+      nameMarks += `<text x="${x}" y="${y.toFixed(1)}" text-anchor="middle" font-size="${nameSize}" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${esc(u.name)}</text>`;
+    }
+    if (showsValue) {
+      valueMarks += `<text x="${x}" y="${bottom.toFixed(1)}" text-anchor="middle" font-size="8" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${fmt(v)}</text>`;
     }
   }
 
   $map.innerHTML =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H.toFixed(0)}" viewBox="${view.x} ${view.y} ${W / view.z} ${H / view.z}" preserveAspectRatio="xMinYMin meet" font-family="Hiragino Sans, Yu Gothic, Meiryo, sans-serif">` +
-    paths + marks + `</svg>`;
+    paths + prefPath + circleMarks + nameMarks + valueMarks + `</svg>`;
 
-  // 凡例
+  // 凡例（色の凡例は 0（白）〜 最大値（濃い色））
   if (mode === "size") {
     $colorLegend.style.display = "none";
   } else {
     $colorLegend.style.display = "";
     $bar.style.background = `linear-gradient(to right, ${colorFor(0, pal)}, ${colorFor(1, pal)})`;
-    $minLabel.textContent = hasData ? fmt(min) : "";
-    $maxLabel.textContent = hasData ? fmt(max) : "";
+    $minLabel.textContent = hasData ? "0" : "";
+    $maxLabel.textContent = hasData ? fmt(maxAbs) : "";
   }
 
   $sizeLegend.innerHTML = "";
@@ -689,13 +911,18 @@ function render() {
 }
 
 // ===== サンプル（読込中の地域から自動生成・仮の値） =====
-const SAMPLE_PREF = "地域,値（仮）\n" + ["北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県"]
-  .map((n, i) => `${n},${100 - i * 7}`).join("\n") + "\n";
-
 function makeSample() {
-  if (units.size === 0) return SAMPLE_PREF; // 白地図の取得前・失敗時
+  if (units.size === 0) return INITIAL_CSV; // 白地図の取得前・失敗時
   const list = [...units.values()].slice(0, 12);
-  const lines = ["地域,値（仮）", ...list.map((u, i) => `${u.code || u.name},${100 - i * 7}`)];
+  // 都道府県データの場合は「都道府県・値」の2列、市町村データの場合は3列
+  const prefLevel = [...units.values()].every(u => u.pref === u.name);
+  if (prefLevel) {
+    const lines = ["都道府県\t値（仮）",
+      ...list.map((u, i) => `${u.name}\t${100 - i * 7}`)];
+    return lines.join("\n") + "\n";
+  }
+  const lines = ["都道府県\t市町村\t値（仮）",
+    ...list.map((u, i) => `${u.pref}\t${u.name}\t${100 - i * 7}`)];
   return lines.join("\n") + "\n";
 }
 
@@ -704,10 +931,10 @@ $("btnSample").onclick = () => { $csv.value = makeSample(); render(); };
 $("btnClear").onclick = () => { $csv.value = ""; render(); };
 $csv.addEventListener("input", () => { render(); scheduleDetect(); });
 $mode.onchange = render;
-$scale.onchange = render;
 $palette.onchange = render;
 $showLabel.onchange = render;
 $showValue.onchange = render;
+$showPref.onchange = render;
 
 $nameKey.onchange = applyGeo;
 $codeKey.onchange = applyGeo;
@@ -807,7 +1034,7 @@ $("btnView").onclick = resetView;
 // ===== 初期化 =====
 (async function init() {
   fillMapSel();
-  $csv.value = SAMPLE_PREF; // ダミーデータ（地図の取得に失敗しても表示）
+  $csv.value = INITIAL_CSV;
   // MapGraph.htm#map=<id> でメニューから地図を指定して開く
   const hashId = decodeURIComponent((location.hash.match(/map=([^&]+)/) || [])[1] || "");
   const picked = MAP_REGISTRY.find(x => x.id === hashId);

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>産出額 品目別抽出</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f6f4;
+    --panel: #ffffff;
+    --ink: #1f2a24;
+    --sub: #5d6b63;
+    --line: #d5dad6;
+    --accent: #2f6b4f;
+    --accent-ink: #ffffff;
+    --warn: #a3392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161a18;
+      --panel: #1f2522;
+      --ink: #e6ebe7;
+      --sub: #9aa89f;
+      --line: #36403a;
+      --accent: #5fae86;
+      --accent-ink: #0f1a14;
+      --warn: #e58a7c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Yu Gothic UI", "Meiryo UI", "Hiragino Sans", sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+  label.field { font-weight: 600; min-width: 5em; }
+  select, input[type="file"] { font: inherit; color: inherit; max-width: 100%; }
+  select {
+    padding: 6px 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    min-width: 16em;
+  }
+  select:disabled { opacity: .5; }
+  .radios label { margin-right: 16px; cursor: pointer; }
+  button {
+    font: inherit;
+    padding: 7px 18px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  #status { color: var(--sub); font-size: 14px; }
+  #status.error { color: var(--warn); }
+  .tablewrap { max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--panel); border-bottom: 2px solid var(--line); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tfoot td { font-weight: 600; position: sticky; bottom: 0; background: var(--panel); border-top: 2px solid var(--line); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>産出額 品目別抽出</h1>
+
+  <section>
+    <div class="row">
+      <label class="field" for="file">Excelファイル</label>
+      <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
+    </div>
+    <div id="status">Excelファイルを選択してください。</div>
+  </section>
+
+  <section>
+    <div class="row">
+      <label class="field" for="itemSel">品目</label>
+      <select id="itemSel" disabled></select>
+    </div>
+    <div class="row radios">
+      <span class="field">抽出単位</span>
+      <label><input type="radio" name="unit" value="pref" checked> 都道府県</label>
+      <label><input type="radio" name="unit" value="prefCity"> 都道府県と市町村</label>
+    </div>
+    <div class="row">
+      <button id="extractBtn" disabled>抽出</button>
+    </div>
+  </section>
+
+  <section id="resultBox" class="hidden">
+    <div class="row">
+      <strong id="resultTitle"></strong>
+      <button class="ghost" id="copyBtn">コピー（貼り付け用）</button>
+      <button class="ghost" id="csvBtn">CSV保存</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td id="totalLabel">合計</td><td class="num" id="total"></td></tr></tfoot>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // 必須ヘッダー（判定用に正規化して比較）
+  const HEADERS = ['市町村コード', '全国農業地域', '都道府県', '市町村', '種別', '部門', '品目', '産出額（千万円）', '全国順位', '県内順位'];
+
+  // 変数
+  let rows = [];            // データ行（オブジェクト配列）
+  let prefList = [];        // 都道府県のユニーク
+  let prefCityList = [];    // [{pref, city}] 都道府県×市町村のユニーク
+  let itemList = [];        // 品目のユニーク
+  let lastResult = null;    // 直近の抽出結果
+
+  const $ = id => document.getElementById(id);
+  const statusEl = $('status');
+
+  const norm = s => String(s == null ? '' : s).normalize('NFKC').replace(/\s+/g, '');
+
+  function setStatus(msg, isError) {
+    statusEl.textContent = msg;
+    statusEl.className = isError ? 'error' : '';
+  }
+
+  // CSV文字列 → 2次元配列（引用符・改行対応）
+  function parseCSV(text) {
+    const out = [];
+    let row = [], cell = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false;
+        } else cell += c;
+      } else if (c === '"') inQ = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n') { row.push(cell); out.push(row); row = []; cell = ''; }
+      else if (c !== '\r') cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); out.push(row); }
+    return out;
+  }
+
+  // ブックから、ヘッダー行を含むシートをCSV化して読み込む
+  function loadWorkbook(wb) {
+    for (const name of wb.SheetNames) {
+      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name], { FS: ',', RS: '\n', blankrows: false });
+      const table = parseCSV(csv);
+      const want = HEADERS.map(norm);
+      for (let r = 0; r < Math.min(table.length, 50); r++) {
+        const cols = table[r].map(norm);
+        const idx = want.map(h => cols.indexOf(h));
+        if (idx.every(i => i >= 0)) {
+          const data = [];
+          for (let k = r + 1; k < table.length; k++) {
+            const line = table[k];
+            const obj = {};
+            HEADERS.forEach((h, j) => { obj[h] = (line[idx[j]] == null ? '' : String(line[idx[j]])).trim(); });
+            if (HEADERS.every(h => obj[h] === '')) continue;
+            data.push(obj);
+          }
+          return { data, sheet: name };
+        }
+      }
+    }
+    return null;
+  }
+
+  const uniq = arr => Array.from(new Set(arr));
+
+  function buildLists() {
+    prefList = uniq(rows.map(r => r['都道府県']).filter(v => v !== ''));
+    const seen = new Set();
+    prefCityList = [];
+    rows.forEach(r => {
+      const key = r['都道府県'] + '\t' + r['市町村'];
+      if (r['都道府県'] === '' || seen.has(key)) return;
+      seen.add(key);
+      prefCityList.push({ pref: r['都道府県'], city: r['市町村'] });
+    });
+    itemList = uniq(rows.map(r => r['品目']).filter(v => v !== ''));
+  }
+
+  // 非数字は0に置換
+  function toNum(v) {
+    const s = String(v == null ? '' : v).normalize('NFKC').replace(/[,\s]/g, '');
+    return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : 0;
+  }
+
+  function fillItemSelect() {
+    const sel = $('itemSel');
+    sel.innerHTML = '';
+    itemList.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    sel.disabled = itemList.length === 0;
+    $('extractBtn').disabled = itemList.length === 0;
+  }
+
+  $('file').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setStatus('読み込み中…');
+    $('resultBox').classList.add('hidden');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+        const res = loadWorkbook(wb);
+        if (!res) {
+          rows = []; fillItemSelect();
+          setStatus('ヘッダー（' + HEADERS.join('／') + '）を含むシートが見つかりません。', true);
+          return;
+        }
+        rows = res.data;
+        buildLists();
+        fillItemSelect();
+        setStatus(`読み込み完了：シート「${res.sheet}」 ${rows.length}行／都道府県 ${prefList.length}／都道府県×市町村 ${prefCityList.length}／品目 ${itemList.length}`);
+      } catch (err) {
+        console.error(err);
+        setStatus('読み込みに失敗しました：' + err.message, true);
+      }
+    };
+    reader.readAsArrayBuffer(f);
+  });
+
+  $('extractBtn').addEventListener('click', () => {
+    const item = $('itemSel').value;
+    const unit = document.querySelector('input[name="unit"]:checked').value;
+    const hit = rows.filter(r => r['品目'] === item);
+
+    // 左端列＝都道府県 or 都道府県+市町村、2列目＝産出額（同一キーは合計）
+    const sums = new Map();
+    const order = unit === 'pref'
+      ? prefList.map(p => ({ key: p, labels: [p] }))
+      : prefCityList.map(pc => ({ key: pc.pref + '\t' + pc.city, labels: [pc.pref, pc.city] }));
+    hit.forEach(r => {
+      const key = unit === 'pref' ? r['都道府県'] : r['都道府県'] + '\t' + r['市町村'];
+      sums.set(key, (sums.get(key) || 0) + toNum(r['産出額（千万円）']));
+    });
+    const result = order.filter(o => sums.has(o.key)).map(o => ({ labels: o.labels, v: sums.get(o.key) }));
+
+    lastResult = { item, unit, result };
+    $('resultTitle').textContent = `${item}（${unit === 'pref' ? '都道府県別' : '都道府県・市町村別'}）${result.length}件`;
+    const heads = headCols(unit);
+    $('thead').innerHTML = '';
+    const htr = document.createElement('tr');
+    heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; htr.appendChild(th); });
+    const thv = document.createElement('th'); thv.className = 'num'; thv.textContent = '産出額（千万円）';
+    htr.appendChild(thv);
+    $('thead').appendChild(htr);
+    $('totalLabel').colSpan = heads.length;
+    const tb = $('tbody');
+    tb.innerHTML = '';
+    let total = 0;
+    result.forEach(({ labels, v }) => {
+      total += v;
+      const tr = document.createElement('tr');
+      labels.forEach(l => { const a = document.createElement('td'); a.textContent = l; tr.appendChild(a); });
+      const b = document.createElement('td'); b.className = 'num'; b.textContent = v.toLocaleString();
+      tr.appendChild(b);
+      tb.appendChild(tr);
+    });
+    $('total').textContent = total.toLocaleString();
+    $('resultBox').classList.remove('hidden');
+  });
+
+  function headCols(unit) { return unit === 'pref' ? ['都道府県'] : ['都道府県', '市町村']; }
+
+  $('copyBtn').addEventListener('click', () => {
+    if (!lastResult) return;
+    const head = headCols(lastResult.unit).concat('産出額（千万円）').join('\t');
+    const tsv = [head].concat(lastResult.result.map(r => r.labels.concat(r.v).join('\t'))).join('\n');
+    const done = () => { $('copyBtn').textContent = 'コピーしました'; setTimeout(() => $('copyBtn').textContent = 'コピー（Excel貼り付け用）', 1500); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(tsv).then(done);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = tsv; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove(); done();
+    }
+  });
+
+  $('csvBtn').addEventListener('click', () => {
+    if (!lastResult) return;
+    const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+    const head = headCols(lastResult.unit).concat('産出額（千万円）').map(q).join(',');
+    const csv = [head].concat(lastResult.result.map(r => r.labels.map(q).concat(r.v).join(','))).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${lastResult.item}_${lastResult.unit === 'pref' ? '都道府県' : '市町村'}別.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+})();
+</script>
+</body>
+</html>
