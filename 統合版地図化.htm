@@ -76,7 +76,7 @@
       </div>
     </div>
 
-    <div id="geoStatus" class="status"></div>
+<div id="geoStatus" class="status"></div>
     <details style="margin-top:8px;">
       <summary style="font-size:12px;color:#555;cursor:pointer;">詳細設定（手動で読み込んだGeoJSON用）</summary>
       <div class="controls col" style="margin-top:12px;">
@@ -162,27 +162,64 @@ let view = { x: 0, y: 0, z: 1 }, lastH = 0; // 表示位置（viewBox左上・�
 const COLOR_POS = "#2563eb", COLOR_NEG = "#dc2626", COLOR_NA = "#d1d5db", COLOR_SHAPE = "#b8c4d4";
 const COLOR_STROKE = "#cbd5e1"; // 地域の境界線（0の白い地域が背景に溶けないよう薄いグレー）
 
-// 配色は「白（0）→ 濃い色（最大）」。0は選んだ配色に関係なく白になる
+// 配色は「白（0）→ 濃い色（最大）」のグラデーション。0は配色に関係なく白
 const PALETTES = {
   blue:  [[255, 255, 255], [8, 48, 107]],
   red:   [[255, 255, 255], [103, 0, 13]],
   green: [[255, 255, 255], [0, 68, 27]],
 };
 
-// ===== 初期データ（都道府県・市町村・肉用牛産出額（千万円）） =====
+// ===== 初期データ（都道府県・肉用牛産出額（千万円）・仮の値） =====
+// 注意：仮の値であり、実際の統計値ではありません。
 const INITIAL_CSV = [
-  "都道府県\t市町村\t肉用牛産出額（千万円）",
-  "北海道\t札幌市\t0",
-  "北海道\t函館市\t3",
-  "北海道\t小樽市\t0",
-  "北海道\t旭川市\t49",
-  "北海道\t室蘭市\t3",
-  "北海道\t釧路市\t106",
-  "北海道\t帯広市\t311",
-  "北海道\t北見市\t42",
-  "北海道\t夕張市\t0",
-  "北海道\t岩見沢市\t1",
-  "北海道\t網走市\t57",
+  "都道府県\t肉用牛産出額（千万円・仮）",
+  "北海道\t1500",
+  "青森県\t320",
+  "岩手県\t480",
+  "宮城県\t210",
+  "秋田県\t90",
+  "山形県\t150",
+  "福島県\t180",
+  "茨城県\t120",
+  "栃木県\t260",
+  "群馬県\t130",
+  "埼玉県\t60",
+  "千葉県\t110",
+  "東京都\t0",
+  "神奈川県\t5",
+  "新潟県\t60",
+  "富山県\t40",
+  "石川県\t20",
+  "福井県\t30",
+  "山梨県\t40",
+  "長野県\t170",
+  "岐阜県\t230",
+  "静岡県\t130",
+  "愛知県\t110",
+  "三重県\t80",
+  "滋賀県\t40",
+  "京都府\t30",
+  "大阪府\t0",
+  "兵庫県\t180",
+  "奈良県\t20",
+  "和歌山県\t40",
+  "鳥取県\t150",
+  "島根県\t140",
+  "岡山県\t110",
+  "広島県\t70",
+  "山口県\t60",
+  "徳島県\t40",
+  "香川県\t20",
+  "愛媛県\t60",
+  "高知県\t40",
+  "福岡県\t60",
+  "佐賀県\t90",
+  "長崎県\t90",
+  "熊本県\t480",
+  "大分県\t180",
+  "宮崎県\t560",
+  "鹿児島県\t1100",
+  "沖縄県\t30",
 ].join("\n") + "\n";
 
 // ===== 白地図レジストリ（fetchで読込・CSVから自動切替） =====
@@ -190,13 +227,14 @@ const INITIAL_CSV = [
 // raw.githubusercontent.com はCORS許可なので file:// で開いても読めます。
 // 同点のときは先に書いたものが優先されるので、細かい地図ほど上に置いてください。
 const MAP_BASE = "https://raw.githubusercontent.com/swd-hub/MapGraph/main/maps/";
+///const MAP_BASE = "./地図データ/"; // ローカル配置で使う場合はこちらを有効化
 const MAP_REGISTRY = [
   { id: "shimane", label: "島根県 市町村", url: MAP_BASE + "shimane.geojson",
     nameKey: "N03_004", codeKey: "N03_007", filterKey: "N03_001", filterVal: "島根県" },
   { id: "city-geo", label: "全国 市町村", url: MAP_BASE + "japan_city.geojson",
-    nameKey: "N03_004", codeKey: "N03_007", default: true },
+    nameKey: "N03_004", codeKey: "N03_007" },
   { id: "pref-geo", label: "全国 都道府県", url: MAP_BASE + "japan_pref.geojson",
-    nameKey: "nam_ja" },
+    nameKey: "nam_ja", default: true },
 ];
 let currentMapId = "";
 
@@ -640,6 +678,7 @@ function render() {
     let fill;
     if (mode === "size") fill = COLOR_SHAPE;
     else if (v === undefined) fill = COLOR_NA;
+    else if (v === 0) fill = "#ffffff";
     else fill = colorFor(maxAbs === 0 ? 0 : Math.abs(v) / maxAbs, pal);
 
     const projected = u.polys.map(poly => poly.map(ring => ring.map(([lon, lat]) => project(lon, lat))));
@@ -661,21 +700,22 @@ function render() {
   let circleMarks = "", nameMarks = "", valueMarks = "";
   for (const { u, v, c } of centers) {
     const [cx, cy] = c;
-    const bubble = mode !== "color" && v !== undefined;
-    const r = bubble ? radiusOf(v) : 0;
+    // 値が0の地域は、円も数値も描かない（地域名は表示）
+    const hasBubble = mode !== "color" && v !== undefined && v !== 0;
+    const showsValue = showValue && v !== undefined && v !== 0;
+    const r = hasBubble ? radiusOf(v) : 0;
     const x = cx.toFixed(1);
-    const hasValue = showValue && v !== undefined;
     const bottom = cy - r - 3; // 数値の基準線（円の直上）
-    if (bubble) {
+    if (hasBubble) {
       const color = v < 0 ? COLOR_NEG : COLOR_POS;
       circleMarks += `<circle cx="${x}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" fill-opacity="0.7" stroke="#ffffff" stroke-width="1"><title>${esc(u.name)}: ${fmt(v)}</title></circle>`;
     }
     if (showLabel) {
       const nameSize = /[県府都道]$/.test(u.name) ? 5 : 10; // 都道府県は5、市町村は10
-      const y = hasValue ? bottom - 9 : bottom;
+      const y = showsValue ? bottom - 9 : bottom;
       nameMarks += `<text x="${x}" y="${y.toFixed(1)}" text-anchor="middle" font-size="${nameSize}" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${esc(u.name)}</text>`;
     }
-    if (hasValue) {
+    if (showsValue) {
       valueMarks += `<text x="${x}" y="${bottom.toFixed(1)}" text-anchor="middle" font-size="8" fill="#111" stroke="#ffffff" stroke-width="3" paint-order="stroke">${fmt(v)}</text>`;
     }
   }
@@ -684,7 +724,7 @@ function render() {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H.toFixed(0)}" viewBox="${view.x} ${view.y} ${W / view.z} ${H / view.z}" preserveAspectRatio="xMinYMin meet" font-family="Hiragino Sans, Yu Gothic, Meiryo, sans-serif">` +
     paths + circleMarks + nameMarks + valueMarks + `</svg>`;
 
-  // 凡例（色の凡例は0〜最大値）
+  // 凡例（色の凡例は 0（白）〜 最大値（濃い色））
   if (mode === "size") {
     $colorLegend.style.display = "none";
   } else {
@@ -728,6 +768,13 @@ function render() {
 function makeSample() {
   if (units.size === 0) return INITIAL_CSV; // 白地図の取得前・失敗時
   const list = [...units.values()].slice(0, 12);
+  // 都道府県データの場合は「都道府県・値」の2列、市町村データの場合は3列
+  const prefLevel = [...units.values()].every(u => u.pref === u.name);
+  if (prefLevel) {
+    const lines = ["都道府県\t値（仮）",
+      ...list.map((u, i) => `${u.name}\t${100 - i * 7}`)];
+    return lines.join("\n") + "\n";
+  }
   const lines = ["都道府県\t市町村\t値（仮）",
     ...list.map((u, i) => `${u.pref}\t${u.name}\t${100 - i * 7}`)];
   return lines.join("\n") + "\n";
