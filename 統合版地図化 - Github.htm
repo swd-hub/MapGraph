@@ -72,67 +72,7 @@
 <div class="wrap">
   <!-- 入力パネル -->
   <div class="panel">
-    <h2>1. 境界データ（GeoJSON）</h2>
-    <div class="controls col" style="margin-bottom:10px;">
-      <label>白地図（取得して読込）：<select id="mapSel"></select></label>
-    </div>
-    <div class="controls col">
-      <label>ファイルから読込：<input type="file" id="geo" accept=".geojson,.json,application/geo+json,application/json"></label>
-      <div class="controls">
-        <input type="url" id="geoUrl" placeholder="GeoJSONのURL（任意）" style="flex:1;">
-        <button id="btnFetch" class="sub">取得</button>
-      </div>
-    </div>
-
-<div id="geoStatus" class="status"></div>
-    <details style="margin-top:8px;">
-      <summary style="font-size:12px;color:#555;cursor:pointer;">詳細設定（手動で読み込んだGeoJSON用）</summary>
-      <div class="controls col" style="margin-top:12px;">
-        <label>地域名のプロパティ：<select id="nameKey"></select></label>
-        <label>一意コードのプロパティ（任意）：<select id="codeKey"></select></label>
-        <label>絞り込みのプロパティ：<select id="filterKey"></select></label>
-        <label>絞り込みの値（完全一致）：<input type="text" id="filterVal" placeholder="例：島根県"></label>
-        <div><button id="btnApply">境界を適用</button></div>
-      </div>
-      <div class="hint">
-        ・読込直後は、地域名のプロパティを自動で選びます。違う場合は手動で変更してください。<br>
-        ・市町村データでは、地域名に <code>N03_004</code>、一意コードに <code>N03_007</code> を指定すると同名の地域も区別できます。
-      </div>
-    </details>
-
-    <h2 style="margin-top:16px;">2. Excelから読込（任意）</h2>
-    <div class="controls col">
-      <label>Excelファイル（産出額データ）：<input type="file" id="xlsFile" accept=".xlsx,.xlsm,.xls"></label>
-      <div id="xlsStatus" class="status" style="margin-top:0;">Excelを選ぶと、品目を選んで下の値データ欄へ展開できます。</div>
-      <label>品目：<select id="itemSel" disabled></select></label>
-      <div class="controls">
-        <span style="font-size:13px;">抽出単位：</span>
-        <label style="flex-direction:row;align-items:center;"><input type="radio" name="unit" value="pref" checked>&nbsp;都道府県</label>
-        <label style="flex-direction:row;align-items:center;"><input type="radio" name="unit" value="prefCity">&nbsp;都道府県と市町村</label>
-      </div>
-      <label>都道府県で絞り込み（市町村単位のとき）：<select id="xlsPref" disabled><option value="">全国（絞り込みなし）</option></select></label>
-      <div><button id="btnExtract" disabled>抽出して地図に反映</button></div>
-    </div>
-
-    <h2 style="margin-top:16px;">3. 値データ（タブ区切り・貼付も可）</h2>
-    <textarea id="csv" spellcheck="false" placeholder="都道府県&#9;市町村&#9;値"></textarea>
-    <div class="controls">
-      <button id="btnSample">サンプル（仮の値）</button>
-      <button id="btnClear" class="sub">クリア</button>
-    </div>
-    <div class="controls">
-      <label>ファイル（CSV / TSV）：<input type="file" id="file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
-    </div>
-    <div class="hint">
-      ・Excelから抽出した結果は、この欄に展開されます（直接貼り付けて編集もできます）。<br>
-      ・列の順番は「都道府県・市町村・値」です。2列（地域名・値）でも入力できます。<br>
-      ・都道府県と市町村の組み合わせで照合するため、同名の市町村も区別できます。<br>
-      ・「東京」「大阪」のように県・府・都を省いた名前も照合できます。<br>
-      ・<code>"1,404"</code> のような桁区切り付きの数値にも対応しています。<br>
-      ・政令指定都市（札幌市など）は地図上では区単位のため、「札幌市」の行は一致しない場合があります。警告欄を確認してください。
-    </div>
-
-    <h2 style="margin-top:16px;">4. 表示設定</h2>
+    <h2>1. 表示設定</h2>
     <div class="controls">
       <label>表示方法：
         <select id="mode">
@@ -163,13 +103,71 @@
       <button id="btnView" class="sub">表示位置リセット</button>
       <span class="hint" style="margin:0;">地図はドラッグで移動、ホイールで拡大縮小（ダブルクリックでリセット）</span>
     </div>
+
+    <h2 style="margin-top:16px;">2. 境界データ（GeoJSON）</h2>
+    <div class="controls col" style="margin-bottom:10px;">
+      <label>白地図（取得して読込）：<select id="mapSel"></select></label>
+    </div>
+    <div class="controls col">
+      <label>ファイルから読込：<input type="file" id="geo" accept=".geojson,.json,application/geo+json,application/json"></label>
+      <div class="controls">
+        <input type="url" id="geoUrl" placeholder="GeoJSONのURL（任意）" style="flex:1;">
+        <button id="btnFetch" class="sub">取得</button>
+      </div>
+    </div>
+
+<div id="geoStatus" class="status"></div>
+    <details style="margin-top:8px;">
+      <summary style="font-size:12px;color:#555;cursor:pointer;">詳細設定（手動で読み込んだGeoJSON用）</summary>
+      <div class="controls col" style="margin-top:12px;">
+        <label>地域名のプロパティ：<select id="nameKey"></select></label>
+        <label>一意コードのプロパティ（任意）：<select id="codeKey"></select></label>
+        <label>絞り込みのプロパティ：<select id="filterKey"></select></label>
+        <label>絞り込みの値（完全一致）：<input type="text" id="filterVal" placeholder="例：島根県"></label>
+        <div><button id="btnApply">境界を適用</button></div>
+      </div>
+      <div class="hint">
+        ・読込直後は、地域名のプロパティを自動で選びます。違う場合は手動で変更してください。<br>
+        ・市町村データでは、地域名に <code>N03_004</code>、一意コードに <code>N03_007</code> を指定すると同名の地域も区別できます。
+      </div>
+    </details>
+
+    <h2 style="margin-top:16px;">3. データ読込（Excel / CSV / TSV）</h2>
+    <div class="controls col">
+      <label>ファイル（Excel / CSV / TSV）：<input type="file" id="xlsFile" accept=".xlsx,.xlsm,.xls,.csv,.txt,.tsv,text/csv,text/plain"></label>
+      <div id="xlsStatus" class="status" style="margin-top:0;">Excelは品目を選んで値データ欄へ展開、CSV / TSVは値データ欄へそのまま読み込みます。</div>
+      <label>品目：<select id="itemSel" disabled></select></label>
+      <div class="controls">
+        <span style="font-size:13px;">抽出単位：</span>
+        <label style="flex-direction:row;align-items:center;"><input type="radio" name="unit" value="pref" checked>&nbsp;都道府県</label>
+        <label style="flex-direction:row;align-items:center;"><input type="radio" name="unit" value="prefCity">&nbsp;都道府県と市町村</label>
+      </div>
+      <label>都道府県で絞り込み（市町村単位のとき）：<select id="xlsPref" disabled><option value="">全国（絞り込みなし）</option></select></label>
+      <div><button id="btnExtract" disabled>抽出して地図に反映</button></div>
+    </div>
+
+    <h2 style="margin-top:16px;">4. 値データ（タブ区切り・貼付も可）</h2>
+    <textarea id="csv" spellcheck="false" placeholder="都道府県&#9;市町村&#9;値"></textarea>
+    <div class="controls">
+      <button id="btnSample">サンプル（仮の値）</button>
+      <button id="btnClear" class="sub">クリア</button>
+    </div>
+    <div class="hint">
+      ・Excelから抽出した結果・CSV/TSVの内容は、この欄に展開されます（直接貼り付けて編集もできます）。<br>
+      ・列の順番は「都道府県・市町村・値」です。2列（地域名・値）でも入力できます。<br>
+      ・都道府県と市町村の組み合わせで照合するため、同名の市町村も区別できます。<br>
+      ・「東京」「大阪」のように県・府・都を省いた名前も照合できます。<br>
+      ・<code>"1,404"</code> のような桁区切り付きの数値にも対応しています。<br>
+      ・政令指定都市（札幌市など）は地図上では区単位のため、「札幌市」の行は一致しない場合があります。警告欄を確認してください。
+    </div>
+
     <div id="warn" class="warn"></div>
   </div>
 
   <!-- 地図パネル -->
   <div class="panel map-area">
     <h2>地域マップ</h2>
-<input type="text" id="itemName" placeholder="品目名" style="width:100%;font-size:16px;font-weight:bold;padding:4px 6px;border:1px solid #ccc;border-radius:6px;margin:0 0 10px;">
+    <input type="text" id="itemName" placeholder="品目名" style="width:100%;font-size:16px;font-weight:bold;padding:4px 6px;border:1px solid #ccc;border-radius:6px;margin:0 0 10px;">
     <div id="map"></div>
     <div id="colorLegend" class="legend-row">
       <div id="bar" class="bar"></div>
@@ -820,8 +818,8 @@ function render() {
   const showValue = $showValue.checked;
 
   const { project, H } = buildProjection();
-  const itemName = $("itemName").value.trim();
-  const headH = itemName ? 36 : 0; // 品目名の帯の高さ
+  const itemName = ""; // 地図中の品目名は表示しない
+  const headH = itemName ? 22 : 0; // 品目名の帯の高さ
   lastH = H + headH;
   const thin = units.size > 300;
 
@@ -893,10 +891,10 @@ function render() {
   }
 
   const titleSvg = itemName
-    ? `<text x="${P}" y="26" font-size="20" font-weight="bold" fill="#111">${esc(itemName)}</text>`
+    ? `<text x="${P}" y="16" font-size="10" font-weight="bold" fill="#111">${esc(itemName)}</text>`
     : "";
   $map.innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${lastH.toFixed(0)}" viewBox="${view.x} ${view.y} ${W / view.z} ${lastH / view.z}" preserveAspectRatio="xMinYMin meet" font-family="Hiragino Sans, Yu Gothic, Meiryo, sans-serif">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${lastH.toFixed(0)}" viewBox="${view.x} ${view.y} ${W / view.z} ${lastH / view.z}" preserveAspectRatio="xMinYMin meet" text-rendering="geometricPrecision" font-kerning="normal" font-family="Hiragino Sans, Yu Gothic, Meiryo, sans-serif">` +
     titleSvg +
     `<g transform="translate(0 ${headH})">` +
     paths + prefPath + circleMarks + nameMarks + valueMarks +
@@ -966,7 +964,6 @@ $palette.onchange = render;
 $showLabel.onchange = render;
 $showValue.onchange = render;
 $showPref.onchange = render;
-$("itemName").addEventListener("input", render);
 
 $nameKey.onchange = applyGeo;
 $codeKey.onchange = applyGeo;
@@ -980,12 +977,6 @@ $mapSel.onchange = () => {
   if (v === "auto") { autoDetect(); return; }
   const m = MAP_REGISTRY.find(x => x.id === v);
   if (m) useMap(m).catch(err => { $geoStatus.textContent = `取得に失敗：${err.message}`; });
-};
-
-$("file").onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  readText(file, text => { $csv.value = text; render(); scheduleDetect(); });
 };
 
 $("geo").onchange = e => {
@@ -1119,6 +1110,10 @@ $("btnView").onclick = resetView;
   $("xlsFile").addEventListener("change", e => {
     const f = e.target.files[0];
     if (!f) return;
+    if (!/\.(xlsx|xlsm|xls)$/i.test(f.name)) {   // CSV / TSV / テキスト
+      readText(f, text => { $csv.value = text; render(); scheduleDetect(); setXs(`「${f.name}」を値データ欄に読み込みました。`); });
+      return;
+    }
     if (typeof XLSX === "undefined") { setXs("Excel読込ライブラリ（SheetJS）を取得できませんでした。ネットワークを確認してください。", true); return; }
     setXs("読み込み中…");
     const reader = new FileReader();
