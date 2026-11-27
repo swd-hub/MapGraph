@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アンケート集計ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-2: #7c3aed;
+    --primary-soft: #eef2ff;
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --ok: #059669;
+    --ok-soft: #ecfdf5;
+    --ng: #dc2626;
+    --ng-soft: #fef2f2;
+    --multi: #a21caf;
+    --multi-soft: #fdf4ff;
+    --radius: 16px;
+    --shadow: 0 10px 25px -12px rgba(15, 23, 42, .18);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ---------- ヘッダー ---------- */
+  .hero {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+    color: #fff;
+    padding: 32px 24px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -80px; top: -80px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.12);
+  }
+  .hero h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: .02em; }
+  .hero p { margin: 6px 0 0; opacity: .85; font-size: 14px; }
+
+  .container {
+    max-width: 1200px;
+    margin: -36px auto 40px;
+    padding: 0 20px;
+    position: relative;
+  }
+
+  /* ---------- カード ---------- */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h3 {
+    margin: 0 0 12px;
+    font-size: 17px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card h3::before {
+    content: "";
+    width: 4px; height: 18px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-2));
+  }
+
+  .muted { color: var(--muted); font-size: 14px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+  .hidden { display: none !important; }
+
+  /* ---------- ファイル入力 ---------- */
+  .upload {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  input[type=file] {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  input[type=file]::file-selector-button {
+    border: none;
+    padding: 10px 18px;
+    margin-right: 12px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 14px -6px rgba(79,70,229,.6);
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .sheet-info {
+    margin-top: 12px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .sheet-info b { color: var(--primary); }
+
+  /* ---------- ボタン・入力 ---------- */
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 9px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff;
+    box-shadow: 0 8px 18px -8px rgba(79,70,229,.7);
+  }
+  .btn-primary:hover { box-shadow: 0 10px 22px -8px rgba(79,70,229,.8); }
+  .btn-ghost {
+    background: #fff;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: #f8fafc; }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 8px 36px 8px 12px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='2' fill='none'/%3E%3C/svg%3E") no-repeat right 12px center;
+    color: var(--text);
+    min-width: 180px;
+    cursor: pointer;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(79,70,229,.15);
+  }
+
+  .row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .row label { font-size: 14px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+  textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px;
+    font-family: Consolas, "Menlo", "Meiryo", monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fbfcfe;
+    resize: vertical;
+    white-space: pre;
+    overflow: auto;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  textarea[readonly] {
+    background: #f1f5f9;
+    color: var(--muted);
+  }
+
+  .msg { font-size: 14px; font-weight: 600; }
+  .msg-ok { color: var(--ok); }
+  .msg-ng { color: var(--ng); }
+
+  .hint {
+    display: block;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 12px;
+    line-height: 1.8;
+  }
+  .hint code {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 6px;
+    color: var(--primary);
+    font-size: 12.5px;
+  }
+
+  /* ---------- 貼り付けた表のプレビュー ---------- */
+  .grid-wrap {
+    margin-top: 14px;
+    max-height: 340px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .grid {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    font-size: 13px;
+    overflow: visible;
+  }
+  .grid th, .grid td {
+    text-align: left;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-bottom: 1px solid #eef2f7;
+    border-right: 1px solid #f1f5f9;
+  }
+  .grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .grid th.ix {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f8fafc;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .grid thead th.ix { z-index: 3; }
+  .grid td.empty {
+    background: repeating-linear-gradient(135deg, #fff, #fff 6px, #fafafa 6px, #fafafa 12px);
+  }
+
+  .unmatched {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    background: var(--ng-soft);
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .unmatched select { min-width: 240px; background-color: #fff; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .pill-ok { background: var(--ok-soft); color: var(--ok); }
+  .pill-ng { background: var(--ng-soft); color: var(--ng); }
+  .pill-multi { background: var(--multi-soft); color: var(--multi); }
+
+  /* ---------- チップ（チェックリスト） ---------- */
+  .checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 200px;
+    overflow: auto;
+    padding: 4px;
+  }
+  .checks label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: all .15s ease;
+    user-select: none;
+  }
+  .checks label:hover { border-color: #c7d2fe; }
+  .checks label:has(input:checked) {
+    background: var(--primary-soft);
+    border-color: #a5b4fc;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .checks input { accent-color: var(--primary); margin: 0; }
+
+  /* ---------- タブ（セグメント） ---------- */
+  .tabs {
+    display: inline-flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 12px;
+    margin: 4px 0 18px;
+  }
+  .tab {
+    border: none;
+    background: transparent;
+    padding: 9px 22px;
+    border-radius: 9px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+  .tab.active {
+    background: #fff;
+    color: var(--primary);
+    box-shadow: 0 4px 12px -4px rgba(15,23,42,.2);
+  }
+
+  /* ---------- 単純集計ブロック ---------- */
+  .qblock { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .qblock .chartbox { flex: 1 1 380px; height: 280px; min-width: 0; position: relative; }
+  .qblock .tablebox { flex: 1 1 300px; min-width: 0; overflow-x: auto; }
+  .qtitle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 14px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .qno {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .chartbox { position: relative; height: 380px; }
+
+  /* ---------- テーブル ---------- */
+  .scroll { overflow-x: auto; }
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  th, td {
+    padding: 9px 12px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    background: #f1f5f9;
+    font-weight: 700;
+    color: #334155;
+    font-size: 13px;
+  }
+  tbody tr:nth-child(even) td { background: #fafbff; }
+  tbody tr:hover td { background: var(--primary-soft); }
+  tfoot td {
+    background: #f8fafc;
+    font-weight: 700;
+    border-bottom: none;
+  }
+
+  /* ---------- 横帯グラフ ---------- */
+  #barWrap { margin-top: 14px; }
+
+  /* ---------- フッター ---------- */
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 8px 0 24px;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 22px; }
+    .tab { padding: 8px 14px; font-size: 14px; }
+    .card { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>アンケート集計ツール</h1>
+  <p>Excel / CSV を読み込んで、単純集計・クロス集計・構成比の比較を行います。</p>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>データの読み込み</h3>
+    <div class="upload">
+      <input type="file" id="file" accept=".xlsx,.xls,.csv">
+      <button class="btn btn-ghost" id="templateBtn">Excelのひな形をダウンロード</button>
+      <span id="info" class="badge hidden"></span>
+    </div>
+    <div id="sheetInfo" class="sheet-info hidden"></div>
+    <p class="muted" style="margin:12px 0 0;">
+      <b>ひな形</b>：「入力」シート（NO・回答者名・問１・回答数…）と、「選択肢」シート（問１・設問名…、回答肢3つのサンプル入り）を出力します。手入力で修正してご利用ください。<br>
+      <b>Excelの場合</b>：シート名に「入力」を含むシートを集計データ、「選択肢」を含むシートを選択肢の照合として自動で読み込みます。<br>
+      <b>CSVの場合</b>：1行目を設問名、2行目以降を回答データとして読み込みます。選択肢は下の欄に貼り付けてください。<br>
+      番号選択型の設問（回答がすべて数値で、選択肢が2〜30種類）を自動判定し、「No」「回答者」などの管理項目は除外します。
+      セル内に「1,3,5」のように複数の番号が入っている設問は、複数回答として集計します。
+    </p>
+  </div>
+
+  <div id="main" class="hidden">
+
+    <div class="card">
+      <h3>集計対象の設問</h3>
+      <p class="muted" style="margin-top:0;">番号選択型の設問にチェックが入っています。管理項目や集計に不要な列はチェックを外してください。</p>
+      <div class="checks" id="targetChecks"></div>
+    </div>
+
+    <div class="card">
+      <h3>選択肢の照合（回答番号と選択肢内容）</h3>
+      <div class="hint">
+        <b>横長の形式</b>：見出し行に「問1」と設問名を並べ、その下に「回答番号」と「選択肢」が縦に並ぶ形です。<br>
+        <b>縦長の形式（CSV / TSV）</b>：1行に1選択肢。列は <code>設問名</code> <code>回答番号</code> <code>選択肢内容</code> の順です。
+      </div>
+      <p class="sub" style="margin:0 0 10px;">
+        Excelの「選択肢」シートは自動で読み込まれます。ここに貼り付けると、貼り付けた内容が優先されます。「クリア」を押すと、「選択肢」シートの内容に戻ります。
+        設問名が集計対象の列と一致しない場合は、未照合欄で該当する列を選んでください。
+      </p>
+      <textarea id="codebook" placeholder="ここにExcelの表またはCSV / TSVを貼り付け（空欄の場合は「選択肢」シートを使用）"></textarea>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="applyLabels">反映</button>
+        <button class="btn btn-ghost" id="sampleLabels">サンプルを入れる</button>
+        <button class="btn btn-ghost" id="clearLabels">クリア</button>
+        <span id="labelMsg" class="msg"></span>
+      </div>
+      <div id="gridPreview"></div>
+      <div id="mapStatus"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="single">単純集計</button>
+      <button class="tab" data-tab="cross">クロス集計</button>
+    </div>
+
+    <!-- 単純集計 -->
+    <div id="single" class="tabpane">
+      <div class="card">
+        <div class="row">
+          <label>グラフ種類（全設問共通）
+            <select id="singleType">
+              <option value="bar">棒グラフ</option>
+              <option value="pie">円グラフ</option>
+            </select>
+          </label>
+        </div>
+        <p class="note">※ 複数回答の設問は構成比の合計が100%を超えるため、円グラフは棒グラフで表示します。</p>
+        <p class="note">※ 各設問の選択肢は、回答数の多い順に並んでいます（無回答は最後）。</p>
+      </div>
+      <div id="singleList"></div>
+    </div>
+
+    <!-- クロス集計 -->
+    <div id="cross" class="tabpane hidden">
+      <div class="card">
+        <div class="row" style="margin-bottom:16px;">
+          <label>行（縦） <select id="rowQ"></select></label>
+          <label>列（横） <select id="colQ"></select></label>
+        </div>
+        <div class="scroll" id="crossTable"></div>
+        <p class="note">※ 複数回答の設問を含む場合、行・列の比率は回答者数を基準にしています。</p>
+        <p class="note">※ 行は回答者数の多い順に並んでいます（無回答は最後）。</p>
+      </div>
+
+      <div class="card">
+        <h3>横帯グラフ（クロス集計結果）</h3>
+        <div class="row" style="margin-bottom:10px;">
+          <label>表示
+            <select id="barMode">
+              <option value="pct">割合（％）</option>
+              <option value="count">人数</option>
+            </select>
+          </label>
+          <span class="sub">帯の中の数字は実数（人数）です。</span>
+        </div>
+        <div id="barWrap" class="chartbox"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>exaBase 集計ツール</footer>
+
+<script>
+  const PALETTE = ['#4f46e5','#f97316','#10b981','#eab308','#a855f7','#ec4899','#0ea5e9','#64748b','#14b8a6','#ef4444','#6366f1','#84cc16','#f43f5e','#06b6d4','#8b5cf6'];
+  const NO_ANSWER = '(無回答)';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // 管理項目（設問ではない列）の初期除外キーワード
+  const META_KEYWORDS = new Set([
+    'no', 'no.', 'id', '番号', '回答者', '回答者名', '氏名', '名前', 'メール', 'mail', 'email',
+    'タイムスタンプ', 'timestamp', '開始時刻', '完了時刻', '回答日時', '回答開始', '回答終了', 'ip', 'ipアドレス'
+  ]);
+  const isMetaHeader = h => META_KEYWORDS.has(String(h).normalize('NFKC').trim().toLowerCase());
+
+  // 複数回答の区切り（半角・全角のカンマ、読点、セミコロン）
+  const SEP = /\s*[,、，;；]\s*/;
+  const SEP_TEST = /[,、，;；]/;
+  const CHOICE_RE = /^-?\d+(?:\.\d+)?(?:\s*[,、，;；]\s*-?\d+(?:\.\d+)?)*$/;
+
+  const SAMPLE_CODEBOOK = [
+    '設問名,回答番号,選択肢内容',
+    '給与する牛種,1,肉用牛',
+    '給与する牛種,2,乳牛',
+    '給与する牛種,3,肉用牛と乳牛',
+    '来年の購入量,1,増やしたい',
+    '来年の購入量,2,維持',
+    '来年の購入量,3,減らす',
+    '品質の評価,1,今の品質で良い',
+    '品質の評価,2,良くないのがけっこうある',
+    '品質の評価,3,全体に良くない'
+  ].join('\n');
+
+  let rawRows = [];
+  let headers = [];
+  let choiceQs = [];        // 集計対象の番号選択型設問
+  let multiQs = new Set();  // 複数回答の設問
+  let labelMap = {};        // { 集計対象の列名: { 回答番号: 選択肢内容 } }
+  let pendingEntries = [];  // 読み取った { name, num, code, label }
+  let pendingUnmatched = [];
+  let manualMap = {};       // { 設問名: 手動で選んだ列名 }
+  let rawCodebook = null;   // 貼り付けた生データ（テキスト欄には要約を表示する）
+  let excelCodebookRows = null; // 「選択肢」シートの行データ
+  let currentSource = '';   // 照合の入力元（表示用）
+  let singleCharts = [];
+  let barChart = null;
+  let applyTimer = null;
+
+  const normCell = s => String(s ?? '').normalize('NFKC').trim();
+  const normCode = s => normCell(s).replace(/^(-?\d+)\.0+$/, '$1');
+
+  /* ---------- 文字コード判定 ---------- */
+  function decodeText(bytes) {
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (e) {
+      return new TextDecoder('shift_jis').decode(bytes);
+    }
+  }
+
+  /* ---------- ひな形のダウンロード ---------- */
+  function downloadTemplate() {
+    if (typeof XLSX === 'undefined') { alert('Excelライブラリを読み込めませんでした。'); return; }
+
+    // 入力シート：ヘッダーのみ（以降は手入力）
+    const inputAoa = [
+      ['NO', '回答者名', '問１', '回答数', '問２', '回答数', '問３', '回答数']
+    ];
+    const wsInput = XLSX.utils.aoa_to_sheet(inputAoa);
+    wsInput['!cols'] = [
+      { wch: 6 }, { wch: 16 },
+      { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }
+    ];
+
+    // 選択肢シート：問番号・設問名のヘッダーと、回答肢3つのサンプル
+    const codeAoa = [
+      ['問１', '給与する牛種', '問２', '来年の購入量', '問３', '品質の評価'],
+      [1, '肉用牛', 1, '増やしたい', 1, '今の品質で良い'],
+      [2, '乳牛', 2, '維持', 2, '良くないのがけっこうある'],
+      [3, '肉用牛と乳牛', 3, '減らす', 3, '全体に良くない']
+    ];
+    const wsCode = XLSX.utils.aoa_to_sheet(codeAoa);
+    wsCode['!cols'] = [
+      { wch: 8 }, { wch: 18 }, { wch: 8 }, { wch: 18 }, { wch: 8 }, { wch: 26 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsInput, '入力');
+    XLSX.utils.book_append_sheet(wb, wsCode, '選択肢');
+    XLSX.writeFile(wb, '集計ひな形.xlsx');
+  }
+
+  $('templateBtn').addEventListener('click', downloadTemplate);
+
+  /* ---------- 表データの読み込み（同名の列は連番で区別） ---------- */
+  function readSheetTable(ws) {
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+    if (!aoa.length) return { headers: [], rows: [] };
+
+    // 見出しが空でない最後の列まで使う
+    let lastIdx = -1;
+    aoa[0].forEach((h, i) => { if (normCell(h) !== '') lastIdx = i; });
+    if (lastIdx < 0) return { headers: [], rows: [] };
+
+    const seen = {};
+    const hs = aoa[0].slice(0, lastIdx + 1).map((h, i) => {
+      const base = normCell(h) || `列${i + 1}`;
+      seen[base] = (seen[base] || 0) + 1;
+      return seen[base] === 1 ? base : `${base}_${seen[base]}`;
+    });
+
+    const rows = aoa.slice(1)
+      .filter(r => r.some(v => normCell(v) !== ''))
+      .map(r => {
+        const o = {};
+        hs.forEach((h, i) => { o[h] = normCell(r[i]); });
+        return o;
+      });
+
+    return { headers: hs, rows };
+  }
+
+  /* ---------- 回答の分解（複数回答対応） ---------- */
+  function splitTokens(v) {
+    return normCell(v).split(SEP).map(normCode).filter(Boolean);
+  }
+
+  function tokensOf(r, q) {
+    const v = r[q];
+    if (v === NO_ANSWER) return [NO_ANSWER];
+    const t = [...new Set(splitTokens(v))];
+    return t.length ? t : [NO_ANSWER];
+  }
+
+  /* ---------- 番号選択型・複数回答の判定 ---------- */
+  function isChoiceQ(h) {
+    const vals = new Set();
+    for (const r of rawRows) {
+      const v = r[h];
+      if (v === NO_ANSWER) continue;
+      if (!CHOICE_RE.test(normCell(v))) return false;
+      splitTokens(v).forEach(t => vals.add(t));
+      if (vals.size > 30) return false;
+    }
+    return vals.size >= 2;
+  }
+
+  function isMultiQ(h) {
+    return rawRows.some(r => r[h] !== NO_ANSWER && SEP_TEST.test(normCell(r[h])));
+  }
+
+  /* ---------- 並び順 ---------- */
+  function sortCats(arr) {
+    return arr.slice().sort((a, b) => {
+      if (a === NO_ANSWER) return 1;
+      if (b === NO_ANSWER) return -1;
+      const na = Number(a), nb = Number(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b, 'ja');
+    });
+  }
+
+  /* ---------- 選択肢ラベル ---------- */
+  function labelOf(q, code) {
+    const m = labelMap[q];
+    const key = normCode(code);
+    return (m && m[key]) ? m[key] : code;
+  }
+
+  // 回答数の多い順（同数は選択肢番号順）。無回答は常に最後
+  function sortByCountDesc(items) {
+    return items.slice().sort((a, b) => {
+      if (a.code === NO_ANSWER) return 1;
+      if (b.code === NO_ANSWER) return -1;
+      return b.count - a.count;
+    });
+  }
+
+  function distOf(q) {
+    const counts = new Map();
+    rawRows.forEach(r => tokensOf(r, q).forEach(c => counts.set(c, (counts.get(c) || 0) + 1)));
+    const items = sortCats([...counts.keys()]).map(code => ({
+      code,
+      label: labelOf(q, code),
+      count: counts.get(code)
+    }));
+    return sortByCountDesc(items);
+  }
+
+  /* ---------- 設問名・番号の照合 ---------- */
+  function normName(s) {
+    return normCell(s)
+      .replace(/^問\s*\d+\s*[:：.．]?\s*/, '')
+      .replace(/^Q\s*\d+\s*[:：.．]?\s*/i, '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+  }
+
+  function resolveByName(name) {
+    const target = normName(name);
+    if (!target) return null;
+    let hit = headers.find(h => normName(h) === target);
+    if (!hit) {
+      hit = headers.find(h => {
+        const c = normName(h);
+        return c && target.length >= 2 && (c.includes(target) || target.includes(c));
+      });
+    }
+    return hit || null;
+  }
+
+  // 「問1」「Q1」「1」のような番号で列を探す
+  function headerByNumber(n) {
+    const re1 = new RegExp(`^(問|Q|q)\\s*0*${n}(?!\\d)`);
+    const re2 = new RegExp(`^0*${n}$`);
+    return headers.find(h => {
+      const c = normCell(h);
+      return re1.test(c) || re2.test(c);
+    }) || null;
+  }
+
+  function resolveName(name, num) {
+    if (manualMap[name]) return manualMap[name];
+    const q = resolveByName(name);
+    if (q) return q;
+    if (num) return headerByNumber(num);
+    return null;
+  }
+
+  /* ---------- CSV / TSV 解析 ---------- */
+  // 列の位置を保ったまま分解する（空のセルも位置として残す）
+  function parseDelimited(text) {
+    const firstLine = text.split(/\r?\n/).find(l => l.trim() !== '') || '';
+    const delim = firstLine.includes('\t') ? '\t' : ',';
+
+    const rows = [];
+    let row = [], cell = '', inQ = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { cell += '"'; i++; }
+          else inQ = false;
+        } else {
+          cell += c;
+        }
+      } else if (c === '"') {
+        inQ = true;
+      } else if (c === delim) {
+        row.push(cell); cell = '';
+      } else if (c === '\n') {
+        row.push(cell); rows.push(row);
+        row = []; cell = '';
+      } else if (c !== '\r') {
+        cell += c;
+      }
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+
+    return rows
+      .map(r => r.map(s => s.trim()))
+      .filter(r => r.some(s => s !== ''));
+  }
+
+  /* 横長形式：見出し行の「問N」列に回答番号、その右隣に選択肢内容 */
+  function parseWide(rows) {
+    const entries = [];
+    const unmatched = [];
+    const head = rows[0].map(normCell);
+
+    head.forEach((h, p) => {
+      const m = h.match(/^問\s*(\d+)\s*(.*)$/);
+      if (!m) return;
+
+      const num = Number(m[1]);
+      const name = normCell(m[2]) || normCell(rows[0][p + 1]);
+      if (!name) { unmatched.push(`問${num}（設問名なし）`); return; }
+
+      rows.slice(1).forEach(r => {
+        const code = normCode(r[p]);
+        const label = normCell(r[p + 1]);
+        if (!code && !label) return;
+        if (/無回答/.test(code) || /無回答/.test(label)) return; // 無回答は集計側で扱う
+        if (!/^-?\d+$/.test(code)) {
+          if (label) unmatched.push(`${name}：${label}`);
+          return;
+        }
+        entries.push({ name, num, code, label: label || code });
+      });
+    });
+
+    return { entries, unmatched };
+  }
+
+  /* 縦長形式：1行1選択肢（設問名・回答番号・選択肢内容） */
+  function detectColumns(rows) {
+    const head = rows[0].map(normCell);
+    const qi = head.findIndex(h => /設問|質問|^問\d*$/.test(h));
+    const ci = head.findIndex(h => /回答番号|選択肢番号|コード|^番号$|^code$/i.test(h));
+    const li = head.findIndex(h => /選択肢|内容|ラベル|回答内容|項目/.test(h));
+
+    if (qi >= 0 && ci >= 0 && li >= 0) {
+      return { qi, ci, li, body: rows.slice(1) };
+    }
+
+    const n = rows[0].length;
+    if (n >= 4) return { qi: 1, ci: 2, li: 3, body: rows };
+    return { qi: 0, ci: 1, li: 2, body: rows };
+  }
+
+  function parseLong(rows) {
+    const { qi, ci, li, body } = detectColumns(rows);
+    const entries = [];
+    const unmatched = [];
+    let lastQ = '';
+
+    body.forEach(r => {
+      const q = normCell(r[qi]);
+      if (q) lastQ = q;
+
+      const code = normCode(r[ci]);
+      const label = normCell(r[li]);
+
+      if (!code && !label) return;
+      if (!code || !lastQ) {
+        unmatched.push(r.filter(Boolean).join(' '));
+        return;
+      }
+      entries.push({ name: lastQ, num: null, code, label: label || code });
+    });
+
+    return { entries, unmatched };
+  }
+
+  // 行データ（配列の配列）から選択肢を読み取る（テキストでもExcelシートでも共通）
+  function parseCodebookRows(rows) {
+    if (!rows.length) return { entries: [], unmatched: [] };
+    const head = rows[0].map(normCell);
+    const isWide = head.some(h => /^問\s*\d+/.test(h));
+    return isWide ? parseWide(rows) : parseLong(rows);
+  }
+
+  /* ---------- 貼り付けた表のプレビュー（列の位置を揃えて表示） ---------- */
+  function colName(i) {
+    return i < 26 ? String.fromCharCode(65 + i) : String(i + 1);
+  }
+
+  function renderGridPreview(rows) {
+    const box = $('gridPreview');
+    if (!rows.length) { box.innerHTML = ''; return; }
+
+    const cols = Math.max(...rows.map(r => r.length));
+    const shown = rows.slice(0, 80);
+
+    let html = `<div class="grid-wrap"><table class="grid"><thead><tr><th class="ix"></th>`;
+    for (let c = 0; c < cols; c++) html += `<th>${colName(c)}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    shown.forEach((r, ri) => {
+      html += `<tr><th class="ix">${ri + 1}</th>`;
+      for (let c = 0; c < cols; c++) {
+        const v = r[c] ?? '';
+        html += v === ''
+          ? `<td class="empty"></td>`
+          : `<td>${esc(String(v).replace(/\n/g, ' '))}</td>`;
+      }
+      html += `</tr>`;
+    });
+    html += `</tbody></table></div>`;
+    if (rows.length > shown.length) {
+      html += `<p class="sub" style="margin-top:6px;">先頭${shown.length}行のみ表示しています（全${rows.length}行）。</p>`;
+    }
+    box.innerHTML = html;
+  }
+
+  // テキスト欄の現在の内容（貼り付けの場合は貼り付けた生データ）
+  function getCodebookText() {
+    return rawCodebook !== null ? rawCodebook : $('codebook').value;
+  }
+
+  /* ---------- 照合の反映 ---------- */
+  // 優先順：貼り付け・入力 → 「選択肢」シート
+  function applyCodebook() {
+    const text = getCodebookText();
+    let rows = null;
+
+    if (text.trim()) {
+      rows = parseDelimited(text);
+      currentSource = rawCodebook !== null ? '貼り付けた選択肢' : '入力した選択肢';
+    } else if (excelCodebookRows && excelCodebookRows.length) {
+      rows = excelCodebookRows;
+      currentSource = '「選択肢」シート';
+    }
+
+    if (!rows || !rows.length) {
+      pendingEntries = [];
+      pendingUnmatched = [];
+      labelMap = {};
+      $('mapStatus').innerHTML = '';
+      renderGridPreview([]);
+      setMsg('照合は未設定です。', 'muted');
+      renderAll();
+      return;
+    }
+
+    renderGridPreview(rows);
+
+    const { entries, unmatched } = parseCodebookRows(rows);
+    pendingEntries = entries;
+    pendingUnmatched = unmatched;
+    applyMapping();
+  }
+
+  // 読み取った選択肢を集計対象の列に対応づけ、表・グラフに反映する
+  function applyMapping() {
+    labelMap = {};
+
+    if (!pendingEntries.length) {
+      $('mapStatus').innerHTML = '';
+      setMsg(pendingUnmatched.length ? `${currentSource}から選択肢を読み取れませんでした。` : '照合は未設定です。',
+        pendingUnmatched.length ? 'msg-ng' : 'muted');
+      renderAll();
+      return;
+    }
+
+    const unresolved = new Map(); // 設問名 → 番号
+    const hit = new Set();
+    let optCount = 0;
+
+    pendingEntries.forEach(e => {
+      const q = resolveName(e.name, e.num);
+      if (!q) {
+        if (!unresolved.has(e.name)) unresolved.set(e.name, e.num);
+        return;
+      }
+      labelMap[q] = labelMap[q] || {};
+      labelMap[q][e.code] = e.label;
+      hit.add(q);
+      optCount++;
+    });
+
+    // 未照合の設問は、集計対象の列を選べるようにする
+    const opts = headers.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+    $('mapStatus').innerHTML = [...unresolved.keys()].map(name => `
+      <div class="unmatched">
+        <span class="pill pill-ng">未照合</span>
+        <b>${esc(name)}</b>
+        <span class="muted">→ 集計対象の列：</span>
+        <select data-name="${esc(name)}">
+          <option value="">選択してください</option>${opts}
+        </select>
+      </div>`).join('');
+
+    const warns = [];
+    if (!headers.length) warns.push('先に集計データを読み込んでください');
+    if (unresolved.size) warns.push(`未照合の設問 ${unresolved.size}件（下で列を選択）`);
+    if (pendingUnmatched.length) warns.push(`読み取れない行 ${pendingUnmatched.length}件`);
+
+    setMsg(`${currentSource}：${hit.size}設問 / ${optCount}選択肢を反映しました。` + (warns.length ? '　' + warns.join('　') : ''),
+      unresolved.size || pendingUnmatched.length ? 'msg-ng' : 'msg-ok');
+
+    renderAll();
+  }
+
+  $('mapStatus').addEventListener('change', e => {
+    const sel = e.target;
+    if (!sel.dataset.name) return;
+    if (sel.value) manualMap[sel.dataset.name] = sel.value;
+    else delete manualMap[sel.dataset.name];
+    applyMapping();
+  });
+
+  function setMsg(text, cls) {
+    $('labelMsg').className = 'msg ' + (cls || 'muted');
+    $('labelMsg').textContent = text;
+  }
+
+  // 複数セルの表を貼り付けた場合は、テキスト欄に要約を表示し、表の内容は下のプレビューで確認する
+  function showPasted(text) {
+    rawCodebook = text;
+    const rows = parseDelimited(text);
+    const cols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+    const ta = $('codebook');
+    ta.readOnly = true;
+    ta.value = `【貼り付け済み】${rows.length}行 × ${cols}列\n内容は下の表で確認できます。\n書き直す場合は「クリア」を押してください。`;
+    applyCodebook();
+  }
+
+  // 貼り付け・入力を取り消し、「選択肢」シートの内容に戻す
+  function clearCodebook() {
+    rawCodebook = null;
+    const ta = $('codebook');
+    ta.readOnly = false;
+    ta.value = '';
+    manualMap = {};
+    labelMap = {};
+    applyCodebook();
+  }
+
+  $('codebook').addEventListener('paste', e => {
+    const t = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/[\t\n]/.test(t)) return;   // 1行の文字列は通常の貼り付け
+    e.preventDefault();
+    showPasted(t);
+  });
+
+  $('codebook').addEventListener('input', () => {
+    if (rawCodebook !== null) return;
+    clearTimeout(applyTimer);
+    applyTimer = setTimeout(applyCodebook, 300);
+  });
+
+  $('applyLabels').addEventListener('click', applyCodebook);
+
+  $('sampleLabels').addEventListener('click', () => {
+    rawCodebook = null;
+    const ta = $('codebook');
+    ta.readOnly = false;
+    ta.value = SAMPLE_CODEBOOK;
+    applyCodebook();
+  });
+
+  $('clearLabels').addEventListener('click', clearCodebook);
+
+  /* ---------- ファイル読み込み（シート名で「入力」「選択肢」を自動判定） ---------- */
+  $('file').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const buf = await f.arrayBuffer();
+      const isCsv = /\.csv$/i.test(f.name);
+      let wb;
+      if (isCsv) {
+        wb = XLSX.read(decodeText(new Uint8Array(buf)), { type: 'string' });
+      } else {
+        wb = XLSX.read(buf, { type: 'array' });
+      }
+
+      const names = wb.SheetNames;
+      let dataName, codeName = null;
+
+      if (isCsv) {
+        dataName = names[0];
+      } else {
+        dataName = names.find(n => /入力/.test(n))
+          || names.find(n => !/選択肢/.test(n))
+          || names[0];
+        codeName = names.find(n => /選択肢/.test(n) && n !== dataName) || null;
+      }
+
+      const table = readSheetTable(wb.Sheets[dataName]);
+      if (!table.rows.length) { alert('集計データがありません。'); return; }
+
+      headers = table.headers;
+      rawRows = table.rows.map(r => {
+        const o = {};
+        headers.forEach(h => { o[h] = r[h] === '' ? NO_ANSWER : r[h]; });
+        return o;
+      });
+      manualMap = {};
+
+      // 「選択肢」シートを行データとして取り込む（列の位置を保つ）
+      excelCodebookRows = null;
+      if (codeName) {
+        excelCodebookRows = XLSX.utils.sheet_to_json(wb.Sheets[codeName], { header: 1, defval: '', raw: false })
+          .map(r => r.map(v => normCell(v)))
+          .filter(r => r.some(s => s !== ''));
+      }
+
+      $('sheetInfo').innerHTML = isCsv
+        ? `集計データ：<b>CSV</b> ／ 選択肢：下の欄に貼り付けてください`
+        : `集計データ：<b>「${esc(dataName)}」</b> ／ 選択肢：${codeName ? `<b>「${esc(codeName)}」</b>` : '「選択肢」シートがないため、下の欄に貼り付けてください'}`;
+      $('sheetInfo').classList.remove('hidden');
+
+      $('main').classList.remove('hidden');
+      initTargets();
+      applyCodebook();
+    } catch (err) {
+      console.error(err);
+      alert('ファイルの読み込みに失敗しました。');
+    }
+  });
+
+  /* ---------- 集計対象（入力シートの列から自動抽出） ---------- */
+  function initTargets() {
+    multiQs = new Set(headers.filter(h => isMultiQ(h)));
+    const auto = new Set(headers.filter(h => !isMetaHeader(h) && isChoiceQ(h)));
+
+    $('targetChecks').innerHTML = headers.map(h =>
+      `<label><input type="checkbox" value="${esc(h)}" ${auto.has(h) ? 'checked' : ''}>${esc(h)}${multiQs.has(h) ? ' <span class="pill pill-multi">複数</span>' : ''}</label>`
+    ).join('');
+
+    refreshTargets();
+  }
+
+  function refreshTargets() {
+    choiceQs = [...$('targetChecks').querySelectorAll('input:checked')].map(i => i.value);
+
+    $('info').textContent = `${rawRows.length}件 ／ 全${headers.length}列 ／ 集計対象 ${choiceQs.length}問`;
+    $('info').classList.remove('hidden');
+
+    if (!choiceQs.length) {
+      alert('集計対象の設問がありません。');
+    }
+
+    const prevRow = $('rowQ').value;
+    const prevCol = $('colQ').value;
+    fillSelect($('rowQ'), choiceQs, choiceQs.includes(prevRow) ? prevRow : choiceQs[0]);
+    fillSelect($('colQ'), choiceQs, choiceQs.includes(prevCol) ? prevCol : (choiceQs[1] || choiceQs[0]));
+
+    renderAll();
+  }
+
+  function renderAll() {
+    renderSingle();
+    renderCross();
+  }
+
+  function fillSelect(sel, arr, val) {
+    sel.innerHTML = arr.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+    if (val !== undefined) sel.value = val;
+  }
+
+  /* ---------- タブ切替 ---------- */
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tabpane').forEach(p => p.classList.add('hidden'));
+      $(btn.dataset.tab).classList.remove('hidden');
+      if (btn.dataset.tab === 'single') renderSingle();
+      else renderCross();
+    });
+  });
+
+  /* ---------- 件数ラベル（単純集計グラフ用）：棒は上、円は扇形の中に件数を表示 ---------- */
+  const singleCountPlugin = {
+    id: 'singleCount',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      const ds = chart.data.datasets[0];
+      const meta = chart.getDatasetMeta(0);
+      if (!meta.visible) return;
+      const isPie = chart.config.type === 'pie';
+
+      ctx.save();
+      ctx.font = '700 13px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+      ctx.textAlign = 'center';
+
+      meta.data.forEach((el, i) => {
+        const n = ds.data[i];
+        if (!n) return;
+
+        if (isPie) {
+          // 扇形が狭すぎる場合は表示しない
+          if (Math.abs(el.endAngle - el.startAngle) < 0.25) return;
+          const p = el.tooltipPosition();
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = isLightColor(ds.backgroundColor[i]) ? '#1e293b' : '#ffffff';
+          ctx.fillText(String(n), p.x, p.y);
+        } else {
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(String(n), el.x, el.y - 4);
+        }
+      });
+      ctx.restore();
+    }
+  };
+
+  /* ---------- 単純集計 ---------- */
+  function renderSingle() {
+    singleCharts.forEach(c => c.destroy());
+    singleCharts = [];
+    const box = $('singleList');
+    box.innerHTML = '';
+
+    if (!choiceQs.length) {
+      box.innerHTML = '<div class="card"><p class="muted">集計対象の設問がありません。</p></div>';
+      return;
+    }
+
+    const total = rawRows.length;
+
+    choiceQs.forEach((q, i) => {
+      const multi = multiQs.has(q);
+      const type = multi && $('singleType').value === 'pie' ? 'bar' : $('singleType').value;
+      const dist = distOf(q);   // 回答数の多い順に並んでいる
+      const labels = dist.map(x => x.label);
+      const vals = dist.map(x => x.count);
+
+      const headCount = multi ? '回答者数' : '件数';
+      const headPct = multi ? '回答者比率' : '構成比';
+
+      let tbl = `<table><thead><tr><th>選択肢</th><th>${headCount}</th><th>${headPct}</th></tr></thead><tbody>`;
+      dist.forEach(x => {
+        tbl += `<tr><td>${esc(x.label)}</td><td>${x.count}</td><td>${(x.count / total * 100).toFixed(1)}%</td></tr>`;
+      });
+      tbl += multi
+        ? `</tbody><tfoot><tr><td>回答者数（全体）</td><td>${total}</td><td>—</td></tr></tfoot></table>`
+        : `</tbody><tfoot><tr><td>合計</td><td>${total}</td><td>100.0%</td></tr></tfoot></table>`;
+
+      const badge = multi ? `<span class="pill pill-multi">複数回答</span>` : '';
+      const memo = multi ? `<p class="note">※ 複数回答のため、比率の合計は100%を超えます（回答者数を基準）。</p>` : '';
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="qtitle"><span class="qno">Q${i + 1}</span>${esc(q)} ${badge}</div>
+        <div class="qblock">
+          <div class="chartbox"><canvas id="sc${i}"></canvas></div>
+          <div class="tablebox">${tbl}${memo}</div>
+        </div>`;
+      box.appendChild(card);
+
+      singleCharts.push(new Chart(document.getElementById(`sc${i}`), {
+        type,
+        data: {
+          labels,
+          datasets: [{
+            label: multi ? '回答者数' : '件数',
+            data: vals,
+            backgroundColor: labels.map((_, k) => PALETTE[k % PALETTE.length]),
+            borderRadius: type === 'bar' ? 8 : 0,
+            borderWidth: type === 'pie' ? 2 : 0,
+            borderColor: '#fff'
+          }]
+        },
+        plugins: [singleCountPlugin],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: type === 'bar' ? { padding: { top: 22 } } : {},
+          plugins: {
+            legend: { display: type === 'pie', position: 'right', labels: { usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: c => `${c.label}: ${c.raw}件 (${(c.raw / total * 100).toFixed(1)}%)`
+              }
+            }
+          },
+          scales: type === 'bar' ? {
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false } }
+          } : {}
+        }
+      }));
+    });
+  }
+
+  /* ---------- クロス集計データ（表・横帯グラフで共通利用） ---------- */
+  function crossData(rq, cq) {
+    const grand = rawRows.length;
+    const rowCodes = new Set(), colCodes = new Set();
+    rawRows.forEach(r => {
+      tokensOf(r, rq).forEach(a => rowCodes.add(a));
+      tokensOf(r, cq).forEach(b => colCodes.add(b));
+    });
+    const colList = sortCats([...colCodes]);
+
+    const mat = {}, rowBase = {}, colBase = {};
+    [...rowCodes].forEach(a => { mat[a] = {}; rowBase[a] = 0; colList.forEach(b => mat[a][b] = 0); });
+    colList.forEach(b => colBase[b] = 0);
+
+    rawRows.forEach(r => {
+      const ra = tokensOf(r, rq);
+      const cb = tokensOf(r, cq);
+      ra.forEach(a => {
+        rowBase[a]++;
+        cb.forEach(b => mat[a][b]++);
+      });
+      cb.forEach(b => colBase[b]++);
+    });
+
+    // 行は回答者数の多い順（無回答は最後）
+    const rowList = sortByCountDesc(
+      Object.keys(rowBase).map(code => ({ code, count: rowBase[code] }))
+    ).map(x => x.code);
+
+    return { grand, rowList, colList, mat, rowBase, colBase };
+  }
+
+  /* ---------- クロス集計表 ---------- */
+  function renderCross() {
+    if (!choiceQs.length) {
+      $('crossTable').innerHTML = '';
+      if (barChart) { barChart.destroy(); barChart = null; }
+      return;
+    }
+    const rq = $('rowQ').value;
+    const cq = $('colQ').value;
+    if (!rq || !cq) return;
+
+    const { grand, rowList, colList, mat, rowBase, colBase } = crossData(rq, cq);
+
+    let html = `<table><thead><tr><th>${esc(rq)} ＼ ${esc(cq)}</th>`;
+    colList.forEach(b => html += `<th>${esc(labelOf(cq, b))}</th>`);
+    html += `<th>回答者数</th></tr></thead><tbody>`;
+
+    rowList.forEach(a => {
+      html += `<tr><td>${esc(labelOf(rq, a))}</td>`;
+      colList.forEach(b => {
+        const n = mat[a][b];
+        const p = rowBase[a] ? (n / rowBase[a] * 100).toFixed(1) : '0.0';
+        html += `<td>${n} <span class="sub">(${p}%)</span></td>`;
+      });
+      html += `<td>${rowBase[a]} <span class="sub">(100.0%)</span></td></tr>`;
+    });
+
+    html += `</tbody><tfoot><tr><td>回答者数</td>`;
+    colList.forEach(b => {
+      const p = grand ? (colBase[b] / grand * 100).toFixed(1) : '0.0';
+      html += `<td>${colBase[b]} <span class="sub">(${p}%)</span></td>`;
+    });
+    html += `<td>${grand} <span class="sub">(100.0%)</span></td></tr></tfoot></table>`;
+    html += `<p class="sub" style="margin-top:8px;">※ セル内の（ ）は、その行（列）の回答者数に対する割合です。</p>`;
+
+    $('crossTable').innerHTML = html;
+
+    renderCrossBar(rq, cq, rowList, colList, mat, rowBase);
+  }
+
+  /* ---------- 実数値ラベル（積み上げ帯の中に人数を表示） ---------- */
+  // 背景色が明るい場合は文字を濃く、暗い場合は白にする
+  function isLightColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 > 160;
+  }
+
+  const valueLabelPlugin = {
+    id: 'valueLabel',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        if (!meta.visible || !ds.counts) return;
+
+        ctx.save();
+        ctx.font = '700 20px "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isLightColor(ds.backgroundColor) ? '#1e293b' : '#ffffff';
+
+        meta.data.forEach((el, i) => {
+          const n = ds.counts[i];
+          const w = Math.abs(el.x - el.base);
+          if (!n || w < 28) return;   // 帯が狭すぎる場合は表示しない
+          ctx.fillText(String(n), (el.x + el.base) / 2, el.y);
+        });
+        ctx.restore();
+      });
+    }
+  };
+
+  /* ---------- クロス集計結果の横帯グラフ（割合 / 人数 を切り替え） ---------- */
+  function renderCrossBar(rq, cq, rowList, colList, mat, rowBase) {
+    if (barChart) { barChart.destroy(); barChart = null; }
+    if (!rowList.length) return;
+
+    const asPct = $('barMode').value === 'pct';
+    $('barWrap').style.height = Math.max(240, rowList.length * 60 + 120) + 'px';
+
+    const anyMulti = multiQs.has(rq) || multiQs.has(cq);
+
+    const datasets = colList.map((b, i) => {
+      const counts = rowList.map(a => mat[a][b]);
+      const rates = rowList.map(a => rowBase[a] ? Math.round(mat[a][b] / rowBase[a] * 1000) / 10 : 0);
+      return {
+        label: labelOf(cq, b),
+        data: asPct ? rates : counts,
+        counts,   // 実数（人数）
+        rates,    // 割合（％）
+        backgroundColor: PALETTE[i % PALETTE.length],
+        borderRadius: 4,
+        borderSkipped: false
+      };
+    });
+
+    barChart = new Chart($('barChart'), {
+      type: 'bar',
+      data: {
+        labels: rowList.map(a => labelOf(rq, a)),
+        datasets
+      },
+      plugins: [valueLabelPlugin],
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10 } },
+          tooltip: {
+            callbacks: {
+              label: c => `${c.dataset.label}: ${c.dataset.counts[c.dataIndex]}件 (${c.dataset.rates[c.dataIndex]}%)`
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            min: 0,
+            max: asPct && !anyMulti ? 100 : undefined,
+            title: { display: true, text: asPct ? '構成比（回答者数に対する割合）' : '人数（件数）', color: '#64748b' },
+            ticks: { callback: v => asPct ? v + '%' : v },
+            grid: { color: '#f1f5f9' }
+          },
+          y: {
+            stacked: true,
+            ticks: { autoSkip: false },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  /* ---------- イベント ---------- */
+  $('targetChecks').addEventListener('change', refreshTargets);
+  $('singleType').addEventListener('change', renderSingle);
+  $('rowQ').addEventListener('change', renderCross);
+  $('colQ').addEventListener('change', renderCross);
+  $('barMode').addEventListener('change', renderCross);
+</script>
+</body>
+</html>
